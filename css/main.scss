@@ -1,0 +1,118 @@
+$primaryColor: #fa8e00;
+$secondaryColor: #045e13;
+$defaultColor: white;
+
+@mixin shade {
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+}
+@mixin flex($d: row, $j: center, $a: center) {
+  display: flex;
+  flex-direction: $d;
+  justify-content: $j;
+  align-items: $a;
+}
+@mixin setBg($color: $defaultColor) {
+  background-color: $color;
+}
+html {
+  scroll-behavior: smooth;
+}
+body {
+  padding: 0;
+  margin: 0;
+  @include setBg(red);
+}
+
+header .logo > img {
+  width: 200px;
+  height: auto;
+}
+header {
+  @include flex(row, center, flex-start);
+  padding: 0.5em;
+  margin-bottom: 3em;
+}
+header.bg-curve-primary-up {
+  @include setBg($primaryColor);
+  border-bottom-left-radius: 50%;
+  border-bottom-right-radius: 50%;
+  height: 120px;
+  z-index: -1000;
+}
+.content {
+  height: 100vh;
+  width: 100%;
+  margin: 0 auto;
+  @include flex(row, space-between, center);
+}
+.content .logo {
+  @include flex(column, center, center);
+  // @include setBg(red);
+  margin: 0 auto;
+}
+.content .logo > img {
+  width: 80%;
+  height: auto;
+  max-width: 300px;
+  margin: 2em auto;
+  // border: 1px solid blue;
+}
+.content > div:nth-child(2) {
+  @include flex(row, center, center);
+  @include setBg($primaryColor);
+  height: 100%;
+  width: 50%;
+}
+
+// texts formats
+.medium-text {
+  font-size: 1.5rem;
+}
+
+// links
+a,
+a:visited,
+a.nav-item,
+a.nav-item:visited {
+  color: $secondaryColor;
+  text-decoration: none;
+}
+a:hover,
+a.nav-item:hover {
+  font-weight: bold;
+  color: $secondaryColor;
+}
+.dashboard {
+  @include setBg($defaultColor);
+  margin: -5em auto;
+  @include shade();
+  width: 80%;
+  height: 500px;
+  padding: 1em;
+  @include flex(row, space-evenly, center);
+}
+.details {
+  @include flex(row, space-evenly, center);
+  max-width: 400px;
+  flex-wrap: wrap;
+}
+.graph {
+  @include flex(column, center, center);
+}
+.graph > img {
+  width: 420px;
+  height: auto;
+}
+.icon-button {
+  border-radius: 5px;
+  box-shadow: 3px 3px 3px;
+  @include flex(column, center, center);
+  padding: 1em;
+  color: $primaryColor;
+  width: 120px;
+  height: 120px;
+  margin: 2em auto;
+}
+.icon-button > span.material-icons {
+  font-size: 3rem;
+}

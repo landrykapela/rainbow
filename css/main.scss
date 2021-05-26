@@ -28,7 +28,7 @@ header .logo > img {
   height: auto;
 }
 header {
-  @include flex(row, center, flex-start);
+  @include flex(row, space-between, flex-start);
   padding: 0.5em;
   margin-bottom: 3em;
 }
@@ -38,6 +38,17 @@ header.bg-curve-primary-up {
   border-bottom-right-radius: 50%;
   height: 120px;
   z-index: -1000;
+}
+header .dash{
+  font-size: 2rem;color:$defaultColor;
+  margin:0.5em;
+  cursor:pointer;
+}
+header > nav{
+  @include flex(row,space-evenly, center);
+}
+header > nav > a.nav-item{
+  margin:0.5em 1em;
 }
 .content {
   height: 100vh;
@@ -115,4 +126,10 @@ a.nav-item:hover {
 }
 .icon-button > span.material-icons {
   font-size: 3rem;
+  cursor: pointer;
+}
+
+.icon-button:hover{
+  @include setBg($secondaryColor);
+  color:$defaultColor;
 }

@@ -16,7 +16,7 @@ header .logo > img {
 header {
   display: flex;
   flex-direction: row;
-  justify-content: center;
+  justify-content: space-between;
   align-items: flex-start;
   padding: 0.5em;
   margin-bottom: 3em;
@@ -28,6 +28,24 @@ header.bg-curve-primary-up {
   border-bottom-right-radius: 50%;
   height: 120px;
   z-index: -1000;
+}
+
+header .dash {
+  font-size: 2rem;
+  color: white;
+  margin: 0.5em;
+  cursor: pointer;
+}
+
+header > nav {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-evenly;
+  align-items: center;
+}
+
+header > nav > a.nav-item {
+  margin: 0.5em 1em;
 }
 
 .content {
@@ -133,6 +151,12 @@ a.nav-item:hover {
 
 .icon-button > span.material-icons {
   font-size: 3rem;
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  background-color: #045e13;
+  color: white;
 }
 
 /*# sourceMappingURL=main.css.map */

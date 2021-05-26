@@ -24,7 +24,9 @@
     />
   </head>
   <header class="bg-curve-primary-up">
+    <span class="material-icons dash" onclick="window.location.pathname='/dashboard.html'">apps</span>
     <nav>
+      <a class="nav-item" href="" id="login"></a>
       <a class="nav-item" href="help.html">Help</a>
       <a class="nav-item" href="/">Sign out</a>
     </nav>
@@ -32,27 +34,27 @@
   <body>
     <section class="dashboard">
       <div class="details">
-        <div class="icon-button">
+        <div class="icon-button" onclick="window.location.pathname='/reps.html'">
           <span class="material-icons">people</span>
           <p>Sales Reps</p>
         </div>
-        <div class="icon-button">
+        <div class="icon-button" onclick="window.location.pathname='/products.html'">
           <span class="material-icons">shopping_basket</span>
           <p>Products</p>
         </div>
-        <div class="icon-button">
+        <div class="icon-button" onclick="window.location.pathname='/suppliers.html'">
           <span class="material-icons">local_shipping</span>
           <p>Suppliers</p>
         </div>
-        <div class="icon-button">
+        <div class="icon-button" onclick="window.location.pathname='/inventory.html'">
           <span class="material-icons">inventory</span>
           <p>Inventory</p>
         </div>
-        <div class="icon-button">
+        <div class="icon-button" onclick="window.location.pathname='/reports.html'">
           <span class="material-icons">assessment</span>
           <p>Reports</p>
         </div>
-        <div class="icon-button">
+        <div class="icon-button" onclick="window.location.pathname='/settings.html'">
           <span class="material-icons">settings</span>
           <p>Settings</p>
         </div>
@@ -61,5 +63,6 @@
         <img src="img/chart.png" alt="Chart" />
       </div>
     </section>
+    <script src="js/main.js"></script>
   </body>
 </html>

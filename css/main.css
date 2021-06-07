@@ -5,7 +5,6 @@ html {
 body {
   padding: 0;
   margin: 0;
-  background-color: red;
 }
 
 header .logo > img {
@@ -23,7 +22,7 @@ header {
 }
 
 header.bg-curve-primary-up {
-  background-color: #fa8e00;
+  background-color: #fa8e00 !important;
   border-bottom-left-radius: 50%;
   border-bottom-right-radius: 50%;
   height: 120px;
@@ -48,10 +47,15 @@ header > nav > a.nav-item {
   margin: 0.5em 1em;
 }
 
+.container {
+  height: 100%;
+}
+
 .content {
   height: 100vh;
   width: 100%;
   margin: 0 auto;
+  padding: 0;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
@@ -63,11 +67,10 @@ header > nav > a.nav-item {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  margin: 0 auto;
+  width: 50%;
 }
 
 .content .logo > img {
-  width: 80%;
   height: auto;
   max-width: 300px;
   margin: 2em auto;
@@ -76,15 +79,23 @@ header > nav > a.nav-item {
 .content > div:nth-child(2) {
   display: flex;
   flex-direction: row;
-  justify-content: center;
+  justify-content: space-evenly;
   align-items: center;
-  background-color: #fa8e00;
   height: 100%;
   width: 50%;
+  margin: 0 auto;
 }
 
 .medium-text {
   font-size: 1.5rem;
+}
+
+.large-text {
+  font-size: 4rem;
+}
+
+.small-text {
+  font-size: 0.5rem;
 }
 
 a,
@@ -102,11 +113,11 @@ a.nav-item:hover {
 }
 
 .dashboard {
-  background-color: white;
+  background-color: white !important;
   margin: -5em auto;
   box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
   width: 80%;
-  height: 500px;
+  height: calc(90vh - 2em);
   padding: 1em;
   display: flex;
   flex-direction: row;
@@ -114,13 +125,73 @@ a.nav-item:hover {
   align-items: center;
 }
 
-.details {
+.dashboard:has(> span) {
   display: flex;
   flex-direction: row;
   justify-content: space-evenly;
-  align-items: center;
-  max-width: 400px;
+  align-items: flex-start;
+}
+
+.details, .details-list {
   flex-wrap: wrap;
+}
+
+.item-list {
+  width: 100%;
+  padding: 0.5em 0;
+  margin-top: 0.5em;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+}
+
+.item-list:hover {
+  background-color: #9c989852 !important;
+}
+
+.item-data {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  margin-left: 0.5em;
+}
+
+.item-title {
+  font-size: 1.2rem;
+}
+
+.item-focus {
+  color: #045e13;
+}
+
+.details {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 480px;
+}
+
+.details-list {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-evenly;
+  align-items: flex-start;
+  align-items: flex-start !important;
+}
+
+.actions-wide {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
 }
 
 .graph {
@@ -135,6 +206,22 @@ a.nav-item:hover {
   height: auto;
 }
 
+.action-buttons {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-evenly;
+  align-items: flex-end;
+}
+
+.action-buttons > span {
+  cursor: pointer;
+  padding: 0.5em;
+}
+
+.action-buttons > span:hover {
+  color: #045e13;
+}
+
 .icon-button {
   border-radius: 5px;
   box-shadow: 3px 3px 3px;
@@ -144,19 +231,51 @@ a.nav-item:hover {
   align-items: center;
   padding: 1em;
   color: #fa8e00;
-  width: 120px;
-  height: 120px;
+  width: 200px;
+  height: 200px;
   margin: 2em auto;
+  cursor: pointer;
+  border: 1px solid #fa8e00;
 }
 
 .icon-button > span.material-icons {
-  font-size: 3rem;
+  font-size: 3.2rem;
   cursor: pointer;
 }
 
 .icon-button:hover {
-  background-color: #045e13;
+  background-color: #045e13 !important;
   color: white;
+  border: 0px solid #fa8e00;
+}
+
+.bg-success {
+  background-color: #045e13 !important;
+  color: white !important;
+}
+
+.bg-primary {
+  background-color: #fa8e00 !important;
+  color: white !important;
+}
+
+#spinner {
+  display: block;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 1px solid #045e13;
+  border-top: none;
+  animation: spin 1s linear 0s 3 forwards;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /*# sourceMappingURL=main.css.map */

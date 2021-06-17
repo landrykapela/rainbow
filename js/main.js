@@ -127,8 +127,10 @@ const listReps = (reps)=>{
         const actionEdit = document.createElement("span");
         const actionDelete = document.createElement("span");
 
+        const profile = document.createElement("img");
         itemList.classList.add("item-list");
-
+        profile.src = rep.profile;
+        profile.classList.add("item-image");
         area.textContent = rep.service_area;
         title.textContent = rep.first_name+" "+rep.last_name;
         title.classList.add("item-title");
@@ -136,7 +138,7 @@ const listReps = (reps)=>{
         itemData.classList.add("item-data");
         itemData.appendChild(title);
         itemData.appendChild(area);
-
+        itemList.appendChild(profile);
         itemList.appendChild(itemData);
         itemActions.classList.add("action-buttons");
         actionEdit.classList.add("material-icons");
@@ -149,6 +151,25 @@ const listReps = (reps)=>{
         itemList.appendChild(itemActions);
 
         listContainer.appendChild(itemList);
+
+       
+        actionDelete.addEventListener('click',(e)=>{
+            confirmDelete("rep",rep.id);
+        });
+
+        //edit product
+        actionEdit.addEventListener('click',(e)=>{
+            let target = window.location.protocol+"//"+window.location.host+"/edit_rep.html?rid="+rep.id;
+            window.location.href = target;
+        });
+
+         //item click
+         itemList.addEventListener('click',(e)=>{
+             e.preventDefault();
+            let target = window.location.protocol+"//"+window.location.host+"/rep_detail.html?rid="+rep.id;
+            window.location.href = target;
+        });
+
 
     })
 }
@@ -165,7 +186,7 @@ const randomId = (strength)=>{
 }
 //confirm delete
 const confirmDelete = (itemType,itemId)=>{
-    let message = "Are you sure you want to delete this item with id "+itemId+"?";
+    let message = "Are you sure you want to delete this "+itemType+"?";
     let return_page = "/dashboard.html";
     if(confirm(message)){
         switch(itemType){
@@ -209,6 +230,43 @@ const confirmDelete = (itemType,itemId)=>{
         window.location.pathname = return_page;
 
     }
+    else{
+        return;
+    }
+}
+
+
+//update Rep
+const updateRep = (rep)=>{
+    var reps= db.reps.map(r=>{
+        if(r.id === rep.id){
+            r = rep;
+        }
+        return r;
+    });
+    
+    var users = db.users.map(u=>{
+        if(u.id === rep.id){
+            u.password = rep.password;
+        }
+        return u;
+    })
+    db.reps = reps;
+    db.users = users;
+    storage.setItem('db',JSON.stringify(db));
+    window.location.pathname="/reps.html";
+}
+
+//save Rep
+const saveRep = (rep)=>{
+    var reps= db.reps;
+    rep.id = randomId(12);
+    db.users.push({id:rep.id,email:rep.email,password:rep.password});
+    delete rep.password;
+    reps.push(rep);
+    db.reps = reps;
+    storage.setItem('db',JSON.stringify(db));
+    window.location.pathname="/reps.html";
 }
 //save product
 const saveProduct = (product)=>{
@@ -312,12 +370,26 @@ if(window.location.pathname == "/add_rep.html"){
             let service_area = document.getElementById("service_area").value;
             let email = document.getElementById("email").value;
             let password = document.getElementById("password").value;
-            let id = randomId(12);
-            let rep = {id:id,first_name:fname,last_name:lname,email:email,phone:phone,service_area:service_area,password:password};
-            reps.push(rep);
-            db.reps = reps;
-            storage.setItem('db',JSON.stringify(db));
-            window.location.pathname="/reps.html";
+            
+            let file = document.getElementById("profile_image").files[0];
+
+            let fileData = null;
+            let rep = {profile:fileData,first_name:fname,last_name:lname,email:email,phone:phone,service_area:service_area,password:password};
+            
+            if(file){
+                let reader = new FileReader();
+                reader.addEventListener('load',()=>{
+                    fileData = reader.result;
+                    rep.profile = fileData;
+                    saveRep(rep);
+                },false);
+                reader.readAsDataURL(file);
+            }
+            else{
+                console.log("no file");
+                saveRep(rep);
+            }
+
         })
     }
 }
@@ -434,4 +506,94 @@ if(window.location.pathname == "/product_detail.html"){
                 
         }
     }
+}
+
+//check if current page is rep detail
+if(window.location.pathname == "/rep_detail.html"){
+    let login = checkLogin();
+    if(login){
+    const urlObject = new URL(window.location.href);
+    const params = urlObject.searchParams;
+    console.log("reps: ",db.reps);
+    console.log("rid: ",params.get("rid"));
+    let rep = db.reps.filter(p=>{
+        return p.id === params.get("rid");
+    });
+    if(rep.length == 0){
+        window.location.pathname = "/not_found.html";
+    }
+    else{
+                document.getElementById("rep_name").textContent = rep[0].first_name + " "+rep[0].last_name;
+                document.getElementById("fname").textContent = rep[0].first_name;
+                document.getElementById("lname").textContent = rep[0].last_name;
+                document.getElementById("area").textContent = rep[0].service_area;
+                document.getElementById("phone").textContent = rep[0].phone;
+                document.getElementById("email").textContent = rep[0].email;
+                document.getElementById("report_link").href = "rep_report.html?rid="+rep[0].id;
+                document.getElementById("edit_link").href = "edit_rep.html?rid="+rep[0].id;
+                document.getElementById("del_link").href = "edit_rep.html?rid="+rep[0].id;
+                document.getElementById("preview").src = rep[0].profile;
+                
+        }
+    }
+}
+
+//check if current page is edit rep
+if(window.location.pathname == "/edit_rep.html"){
+    let login = checkLogin();
+    if(login){
+    const urlObject = new URL(window.location.href);
+    const params = urlObject.searchParams;
+    let rep = db.reps.filter(p=>{
+        return p.id === params.get("rid");
+    });
+    if(rep.length == 0){
+        window.location.pathname = "/not_found.html";
+    }
+    else{
+        const form = document.querySelector("#edit_rep_form");
+        if(form){
+            form.fname.value = rep[0].first_name;
+            form.lname.value = rep[0].last_name;
+            form.email.value = rep[0].email;
+            form.phone.value = rep[0].phone;
+            form.service_area.value = rep[0].service_area;
+            document.querySelector("#preview").src = rep[0].profile;
+            form.addEventListener('submit',(event)=>{
+                event.preventDefault();
+                let fname = document.getElementById("fname").value;
+                let lname = document.getElementById("lname").value;
+                let email = document.getElementById("email").value;
+                let phone = document.getElementById("phone").value;
+                let service_area = document.getElementById("service_area").value;
+                let file = document.getElementById("profile_image").files[0];
+                
+                let fileData = rep[0].profile;
+                let rp = rep[0];
+
+                if(rp.first_name.toLowerCase() != fname.toLowerCase()) rp.first_name = fname;
+                if(rp.last_name.toLowerCase() != lname.toLowerCase()) rp.last_name = lname;
+                if(rp.email.toLowerCase() != email.toLowerCase()) rp.email = email;
+                if(rp.phone != phone) rp.phone = phone;
+                if(rp.service_area.toLowerCase() != service_area.toLowerCase()) rp.service_area = service_area;
+                console.log("prod: ",rp);
+                if(file){
+                    let reader = new FileReader();
+                    reader.addEventListener('load',()=>{
+                        fileData = reader.result;
+                        prod.image = fileData;
+                       updateRep(rp);
+                    },false);
+                    reader.readAsDataURL(file);
+                }
+                else{
+                    console.log("no file");
+                    updateRep(rp);
+                }
+               
+            })
+        }
+    }
+    
+}
 }

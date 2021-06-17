@@ -581,7 +581,7 @@ if(window.location.pathname == "/edit_rep.html"){
                     let reader = new FileReader();
                     reader.addEventListener('load',()=>{
                         fileData = reader.result;
-                        prod.image = fileData;
+                        rp.profile = fileData;
                        updateRep(rp);
                     },false);
                     reader.readAsDataURL(file);

@@ -134,6 +134,13 @@ a.nav-item:hover {
 .item-data{
   @include flex(column,center,flex-start);
   margin-left:0.5em;
+  flex-grow: 1;
+}
+.item-image{
+  width:50px;
+  height:50px;
+  border-radius:50%;
+  margin:0.5em;
 }
 .item-title{
   // color:$faint;
@@ -165,6 +172,18 @@ a.nav-item:hover {
   height: auto;
 }
 
+//message toaster
+.toast{
+  position:fixed;
+  top: 0;
+  margin:0 auto;
+  background-color:rgba(0, 0, 0, 0.596);
+  padding:2em;
+  z-index: 9999999999999999999999999999999;
+  height:200px;
+  display:block;
+}
+
 //buttons
 .action-buttons{
   @include flex(row,space-evenly,flex-end);
@@ -186,8 +205,8 @@ a.nav-item:hover {
   @include flex(column, center, center);
   padding: 1em;
   color: $primaryColor;
-  width: 200px;
-  height: 200px;
+  width: 150px;
+  height: 150px;
   margin: 2em auto;
   cursor: pointer;
   border:1px solid $primaryColor;

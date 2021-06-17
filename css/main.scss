@@ -27,7 +27,8 @@ body {
 
 header .logo > img {
   width: 200px;
-  height: auto;
+  height: 200px;
+  object-fit: cover;
 }
 header {
   @include flex(row, space-between, flex-start);
@@ -56,7 +57,7 @@ header > nav > a.nav-item{
   height:100%;
 }
 .content {
-  // height: 100vh;
+  height: 100vh;
   width: 100%;
   margin: 0 auto;
   padding:0;
@@ -164,6 +165,7 @@ a.nav-item:hover {
   height:50px;
   border-radius:50%;
   margin:0.5em;
+  object-fit: cover;
 }
 .item-title{
   // color:$faint;
@@ -248,7 +250,7 @@ a.nav-item:hover {
   @include setBg($secondaryColor);
   color:$defaultColor !important;
 }
-.bg-primary{
+.primary-bg{
   @include setBg($primaryColor);
   color:$defaultColor !important;
 }

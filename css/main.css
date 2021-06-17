@@ -9,7 +9,8 @@ body {
 
 header .logo > img {
   width: 200px;
-  height: auto;
+  height: 200px;
+  object-fit: cover;
 }
 
 header {
@@ -52,6 +53,7 @@ header > nav > a.nav-item {
 }
 
 .content {
+  height: 100vh;
   width: 100%;
   margin: 0 auto;
   padding: 0;
@@ -198,6 +200,7 @@ a.nav-item:hover {
   height: 50px;
   border-radius: 50%;
   margin: 0.5em;
+  object-fit: cover;
 }
 
 .item-title {
@@ -305,7 +308,7 @@ a.nav-item:hover {
   color: white !important;
 }
 
-.bg-primary {
+.primary-bg {
   background-color: #fa8e00 !important;
   color: white !important;
 }

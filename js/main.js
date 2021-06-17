@@ -1,9 +1,259 @@
 const storage = window.localStorage;
 const session = window.sessionStorage;
-
+const countryList = [
+    "Afghanistan",
+    "Åland Islands",
+    "Albania",
+    "Algeria",
+    "American Samoa",
+    "Andorra",
+    "Angola",
+    "Anguilla",
+    "Antarctica",
+    "Antigua and Barbuda",
+    "Argentina",
+    "Armenia",
+    "Aruba",
+    "Australia",
+    "Austria",
+    "Azerbaijan",
+    "Bahamas (the)",
+    "Bahrain",
+    "Bangladesh",
+    "Barbados",
+    "Belarus",
+    "Belgium",
+    "Belize",
+    "Benin",
+    "Bermuda",
+    "Bhutan",
+    "Bolivia (Plurinational State of)",
+    "Bonaire, Sint Eustatius and Saba",
+    "Bosnia and Herzegovina",
+    "Botswana",
+    "Bouvet Island",
+    "Brazil",
+    "British Indian Ocean Territory (the)",
+    "Brunei Darussalam",
+    "Bulgaria",
+    "Burkina Faso",
+    "Burundi",
+    "Cabo Verde",
+    "Cambodia",
+    "Cameroon",
+    "Canada",
+    "Cayman Islands (the)",
+    "Central African Republic (the)",
+    "Chad",
+    "Chile",
+    "China",
+    "Christmas Island",
+    "Cocos (Keeling) Islands (the)",
+    "Colombia",
+    "Comoros (the)",
+    "Congo (the Democratic Republic of the)",
+    "Congo (the)",
+    "Cook Islands (the)",
+    "Costa Rica",
+    "Croatia",
+    "Cuba",
+    "Curaçao",
+    "Cyprus",
+    "Czechia",
+    "Côte d'Ivoire",
+    "Denmark",
+    "Djibouti",
+    "Dominica",
+    "Dominican Republic (the)",
+    "Ecuador",
+    "Egypt",
+    "El Salvador",
+    "Equatorial Guinea",
+    "Eritrea",
+    "Estonia",
+    "Eswatini",
+    "Ethiopia",
+    "Falkland Islands (the) [Malvinas]",
+    "Faroe Islands (the)",
+    "Fiji",
+    "Finland",
+    "France",
+    "French Guiana",
+    "French Polynesia",
+    "French Southern Territories (the)",
+    "Gabon",
+    "Gambia (the)",
+    "Georgia",
+    "Germany",
+    "Ghana",
+    "Gibraltar",
+    "Greece",
+    "Greenland",
+    "Grenada",
+    "Guadeloupe",
+    "Guam",
+    "Guatemala",
+    "Guernsey",
+    "Guinea",
+    "Guinea-Bissau",
+    "Guyana",
+    "Haiti",
+    "Heard Island and McDonald Islands",
+    "Holy See (the)",
+    "Honduras",
+    "Hong Kong",
+    "Hungary",
+    "Iceland",
+    "India",
+    "Indonesia",
+    "Iran (Islamic Republic of)",
+    "Iraq",
+    "Ireland",
+    "Isle of Man",
+    "Israel",
+    "Italy",
+    "Jamaica",
+    "Japan",
+    "Jersey",
+    "Jordan",
+    "Kazakhstan",
+    "Kenya",
+    "Kiribati",
+    "Korea (the Democratic People's Republic of)",
+    "Korea (the Republic of)",
+    "Kuwait",
+    "Kyrgyzstan",
+    "Lao People's Democratic Republic (the)",
+    "Latvia",
+    "Lebanon",
+    "Lesotho",
+    "Liberia",
+    "Libya",
+    "Liechtenstein",
+    "Lithuania",
+    "Luxembourg",
+    "Macao",
+    "Madagascar",
+    "Malawi",
+    "Malaysia",
+    "Maldives",
+    "Mali",
+    "Malta",
+    "Marshall Islands (the)",
+    "Martinique",
+    "Mauritania",
+    "Mauritius",
+    "Mayotte",
+    "Mexico",
+    "Micronesia (Federated States of)",
+    "Moldova (the Republic of)",
+    "Monaco",
+    "Mongolia",
+    "Montenegro",
+    "Montserrat",
+    "Morocco",
+    "Mozambique",
+    "Myanmar",
+    "Namibia",
+    "Nauru",
+    "Nepal",
+    "Netherlands (the)",
+    "New Caledonia",
+    "New Zealand",
+    "Nicaragua",
+    "Niger (the)",
+    "Nigeria",
+    "Niue",
+    "Norfolk Island",
+    "Northern Mariana Islands (the)",
+    "Norway",
+    "Oman",
+    "Pakistan",
+    "Palau",
+    "Palestine, State of",
+    "Panama",
+    "Papua New Guinea",
+    "Paraguay",
+    "Peru",
+    "Philippines (the)",
+    "Pitcairn",
+    "Poland",
+    "Portugal",
+    "Puerto Rico",
+    "Qatar",
+    "Republic of North Macedonia",
+    "Romania",
+    "Russian Federation (the)",
+    "Rwanda",
+    "Réunion",
+    "Saint Barthélemy",
+    "Saint Helena, Ascension and Tristan da Cunha",
+    "Saint Kitts and Nevis",
+    "Saint Lucia",
+    "Saint Martin (French part)",
+    "Saint Pierre and Miquelon",
+    "Saint Vincent and the Grenadines",
+    "Samoa",
+    "San Marino",
+    "Sao Tome and Principe",
+    "Saudi Arabia",
+    "Senegal",
+    "Serbia",
+    "Seychelles",
+    "Sierra Leone",
+    "Singapore",
+    "Sint Maarten (Dutch part)",
+    "Slovakia",
+    "Slovenia",
+    "Solomon Islands",
+    "Somalia",
+    "South Africa",
+    "South Georgia and the South Sandwich Islands",
+    "South Sudan",
+    "Spain",
+    "Sri Lanka",
+    "Sudan (the)",
+    "Suriname",
+    "Svalbard and Jan Mayen",
+    "Sweden",
+    "Switzerland",
+    "Syrian Arab Republic",
+    "Taiwan (Province of China)",
+    "Tajikistan",
+    "Tanzania, United Republic of",
+    "Thailand",
+    "Timor-Leste",
+    "Togo",
+    "Tokelau",
+    "Tonga",
+    "Trinidad and Tobago",
+    "Tunisia",
+    "Turkey",
+    "Turkmenistan",
+    "Turks and Caicos Islands (the)",
+    "Tuvalu",
+    "Uganda",
+    "Ukraine",
+    "United Arab Emirates (the)",
+    "United Kingdom of Great Britain and Northern Ireland (the)",
+    "United States Minor Outlying Islands (the)",
+    "United States of America (the)",
+    "Uruguay",
+    "Uzbekistan",
+    "Vanuatu",
+    "Venezuela (Bolivarian Republic of)",
+    "Viet Nam",
+    "Virgin Islands (British)",
+    "Virgin Islands (U.S.)",
+    "Wallis and Futuna",
+    "Western Sahara",
+    "Yemen",
+    "Zambia",
+    "Zimbabwe"
+  ];
 let db = storage.getItem("db");
 if(db === undefined || db === null){
-    let data = {products:[],users:[],transactions:[],inventory:[],customers:[],reps:[]};
+    let data = {suppliers:[],products:[],users:[],transactions:[],inventory:[],customers:[],reps:[]};
     storage.setItem("db",JSON.stringify(data));
     db = storage.getItem("db");
 }
@@ -103,12 +353,13 @@ const listProducts = (products)=>{
 
         //edit product
         actionEdit.addEventListener('click',(e)=>{
+            e.preventDefault();
             let target = window.location.protocol+"//"+window.location.host+"/edit_product.html?pid="+p.id;
             window.location.href = target;
         })
 
         //item click
-        itemList.addEventListener('click',(e)=>{
+        title.addEventListener('click',(e)=>{
             let target = window.location.protocol+"//"+window.location.host+"/product_detail.html?pid="+p.id;
             window.location.href = target;
         })
@@ -164,7 +415,7 @@ const listReps = (reps)=>{
         });
 
          //item click
-         itemList.addEventListener('click',(e)=>{
+         itemData.addEventListener('click',(e)=>{
              e.preventDefault();
             let target = window.location.protocol+"//"+window.location.host+"/rep_detail.html?rid="+rep.id;
             window.location.href = target;
@@ -173,6 +424,62 @@ const listReps = (reps)=>{
 
     })
 }
+
+//load suppliers
+const listSuppliers = (suppliers)=>{
+    const listContainer = document.querySelector("#list_container");
+    suppliers.forEach(supplier=>{
+        const itemList = document.createElement("div");
+        itemList.classList.add("item-list");
+        const itemData = document.createElement("div");
+        const itemActions = document.createElement("div");
+        const title = document.createElement("span");
+        const area = document.createElement("span");
+        const actionEdit = document.createElement("span");
+        const actionDelete = document.createElement("span");
+
+        area.textContent = supplier.address+", "+supplier.country;
+        title.textContent = supplier.name;
+        title.classList.add("item-title");
+        area.classList.add("item-focus");
+        itemData.classList.add("item-data");
+        itemData.appendChild(title);
+        itemData.appendChild(area);
+        itemList.appendChild(itemData);
+        itemActions.classList.add("action-buttons");
+        actionEdit.classList.add("material-icons");
+        actionEdit.textContent ="edit";
+        actionDelete.classList.add("material-icons");
+        actionDelete.textContent ="delete";
+
+        itemActions.appendChild(actionEdit);
+        itemActions.appendChild(actionDelete);
+        itemList.appendChild(itemActions);
+
+        listContainer.appendChild(itemList);
+
+       
+        actionDelete.addEventListener('click',(e)=>{
+            confirmDelete("supplier",supplier.id);
+        });
+
+        //edit product
+        actionEdit.addEventListener('click',(e)=>{
+            let target = window.location.protocol+"//"+window.location.host+"/edit_supplier.html?sid="+supplier.id;
+            window.location.href = target;
+        });
+
+         //item click
+         itemData.addEventListener('click',(e)=>{
+             e.preventDefault();
+            let target = window.location.protocol+"//"+window.location.host+"/supplier_detail.html?sid="+supplier.id;
+            window.location.href = target;
+        });
+
+
+    })
+}
+
 
 //generate random string id;
 const randomId = (strength)=>{
@@ -236,6 +543,21 @@ const confirmDelete = (itemType,itemId)=>{
 }
 
 
+//update supplier
+const updateSupplier = (supplier)=>{
+    var suppliers= db.suppliers.map(s=>{
+        if(s.id === supplier.id){
+            s = supplier;
+        }
+        return s;
+    });
+    
+
+    db.suppliers = suppliers;
+    storage.setItem('db',JSON.stringify(db));
+    window.location.pathname="/suppliers.html";
+}
+
 //update Rep
 const updateRep = (rep)=>{
     var reps= db.reps.map(r=>{
@@ -255,6 +577,16 @@ const updateRep = (rep)=>{
     db.users = users;
     storage.setItem('db',JSON.stringify(db));
     window.location.pathname="/reps.html";
+}
+
+//save Supplier
+const saveSupplier = (supplier)=>{
+    var suppliers = db.suppliers;
+    supplier.id = randomId(12);
+    suppliers.push(supplier);
+    db.suppliers = suppliers;
+    storage.setItem('db',JSON.stringify(db));
+    window.location.pathname="/suppliers.html";
 }
 
 //save Rep
@@ -332,6 +664,25 @@ if(window.location.pathname == "/reps.html"){
     }
 }
 
+//check if current page is suppliers.html
+if(window.location.pathname == "/suppliers.html"){
+    let login = checkLogin();
+    if(login){
+        let suppliers = db.suppliers;
+        if(suppliers.length === 0){
+            simulateLoad(1000,()=>{
+                window.location.pathname = "/add_supplier.html";
+            });
+            
+        }
+        else{
+           
+           simulateLoad(1000,()=>{
+               listSuppliers(suppliers);
+           });
+        }
+    }
+}
 
 //check if current page is products.html
 if(window.location.pathname == "/products.html"){
@@ -351,6 +702,36 @@ if(window.location.pathname == "/products.html"){
            });
         }
     }
+}
+
+//check if current page is add supplier
+if(window.location.pathname == "/add_supplier.html"){
+    let login = checkLogin();
+    if(login){
+    const form = document.querySelector("#new_supplier_form");
+
+    if(form){
+        countryList.forEach(country=>{
+            let opt = new Option(country);
+            form.country.options.add(opt);
+        });
+        form.addEventListener('submit',(event)=>{
+            event.preventDefault();
+            let name = document.getElementById("name").value;
+            let country = document.getElementById("country").value;
+            let phone = document.getElementById("phone").value;
+            let contact_person = document.getElementById("contact").value;
+            let email = document.getElementById("email").value;
+            let address = document.getElementById("address").value;
+            
+         
+            let sup = {name:name,country:country,email:email,phone:phone,address:address,contact:contact_person};
+            
+           saveSupplier(sup);
+
+        })
+    }
+}
 }
 
 
@@ -530,14 +911,95 @@ if(window.location.pathname == "/rep_detail.html"){
                 document.getElementById("phone").textContent = rep[0].phone;
                 document.getElementById("email").textContent = rep[0].email;
                 document.getElementById("report_link").href = "rep_report.html?rid="+rep[0].id;
-                document.getElementById("edit_link").href = "edit_rep.html?rid="+rep[0].id;
-                document.getElementById("del_link").href = "edit_rep.html?rid="+rep[0].id;
+                // document.getElementById("edit_link").href = "edit_rep.html?rid="+rep[0].id;
+                // document.getElementById("del_link").href = "edit_rep.html?rid="+rep[0].id;
                 document.getElementById("preview").src = rep[0].profile;
                 
         }
     }
 }
+//check if current page is supplier detail
+if(window.location.pathname == "/supplier_detail.html"){
+    let login = checkLogin();
+    if(login){
+    const urlObject = new URL(window.location.href);
+    const params = urlObject.searchParams;
+    
+    let supplier = db.suppliers.filter(p=>{
+        return p.id === params.get("sid");
+    });
+    if(supplier.length == 0){
+        window.location.pathname = "/not_found.html";
+    }
+    else{
+                document.getElementById("rep_name").textContent = supplier[0].name;
+                document.getElementById("name").textContent = supplier[0].name;
+                document.getElementById("country").textContent = supplier[0].country;
+                document.getElementById("contact").textContent = supplier[0].contact;
+                document.getElementById("address").textContent = supplier[0].address;
+                document.getElementById("phone").textContent = supplier[0].phone;
+                document.getElementById("email").textContent = supplier[0].email;
+                document.getElementById("report_link").href = "supplier_report.html?sid="+supplier[0].id;
+          
+                
+        }
+    }
+}
 
+//check if current page is edit supplier
+if(window.location.pathname == "/edit_supplier.html"){
+    let login = checkLogin();
+    if(login){
+    const urlObject = new URL(window.location.href);
+    const params = urlObject.searchParams;
+    let supplier = db.suppliers.filter(p=>{
+        return p.id === params.get("sid");
+    });
+    if(supplier.length == 0){
+        window.location.pathname = "/not_found.html";
+    }
+    else{
+        const form = document.querySelector("#edit_supplier_form");
+        if(form){
+            form.name.value = supplier[0].name;
+            form.contact.value = supplier[0].contact;
+            form.email.value = supplier[0].email;
+            form.phone.value = supplier[0].phone;
+            form.address.value = supplier[0].address;
+            var countrySelect= document.getElementById("country");
+            let selectedCountryIndex = 0;
+            countryList.forEach((country,index)=>{
+                countrySelect.options.add(new Option(country));
+                if(country.toLowerCase() == supplier[0].country.toLowerCase()) selectedCountryIndex = index;
+            })
+            countrySelect.options.selectedIndex = selectedCountryIndex;
+            form.addEventListener('submit',(event)=>{
+                event.preventDefault();
+                let name = document.getElementById("name").value;
+                let contact = document.getElementById("contact").value;
+                let country = countrySelect.value;
+                let email = document.getElementById("email").value;
+                let phone = document.getElementById("phone").value;
+                let address = document.getElementById("address").value;
+                
+                let sp = supplier[0];
+
+                if(sp.name.toLowerCase() != name.toLowerCase()) sp.name = name;
+                if(sp.contact.toLowerCase() != contact.toLowerCase()) sp.contact = contact;
+                if(sp.country.toLowerCase() != country.toLowerCase()) sp.country = country;
+                if(sp.email.toLowerCase() != email.toLowerCase()) sp.email = email;
+                if(sp.phone != phone) sp.phone = phone;
+                if(sp.address.toLowerCase() != address.toLowerCase())sp.address = address;
+                
+                    updateSupplier(sp);
+              
+               
+            })
+        }
+    }
+    
+}
+}
 //check if current page is edit rep
 if(window.location.pathname == "/edit_rep.html"){
     let login = checkLogin();

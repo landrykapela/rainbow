@@ -2,6 +2,7 @@ $primaryColor: #fa8e00;
 $primaryColorTrans: #fa8e005e;
 $secondaryColor: #045e13;
 $faint:#9c989852;
+$faintDark:#312f2f;
 $defaultColor: white;
 
 @mixin shade {
@@ -55,7 +56,7 @@ header > nav > a.nav-item{
   height:100%;
 }
 .content {
-  height: 100vh;
+  // height: 100vh;
   width: 100%;
   margin: 0 auto;
   padding:0;
@@ -78,6 +79,12 @@ header > nav > a.nav-item{
   height: 100%;
   width: 50%;
   margin:0 auto;
+}
+.content > div.product-details{
+  @include flex(column,flex-start ,flex-start);
+  height:auto;
+  padding:1em;
+  padding-top:0;
 }
 
 // texts formats
@@ -108,12 +115,28 @@ a.nav-item:hover {
   margin: -5em auto;
   @include shade();
   width: 80%;
-  height: calc(90vh - 2em);
+  min-height: calc(90vh - 4em);
+  height:auto;
   padding: 1em;
   @include flex(row, space-evenly, center);
 }
 .dashboard:has( > span){
   @include flex(row, space-evenly, flex-start);
+}
+.product-details{
+  border-left:1px solid $secondaryColor;
+  font-size: medium;
+}
+.product-details > div{
+  @include flex(column,flex-start,flex-start);
+  margin-bottom: 1em;
+}
+.product-details label{
+  color: $faintDark;
+}
+.product-details span{
+  color: $secondaryColor;
+  font-size: large;
 }
 .details,.details-list{
   flex-wrap: wrap;

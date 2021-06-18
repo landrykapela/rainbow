@@ -1,3 +1,4 @@
+
 const storage = window.localStorage;
 const session = window.sessionStorage;
 const countryList = [
@@ -480,7 +481,40 @@ const listSuppliers = (suppliers)=>{
     })
 }
 
-
+//show summary
+const showInventorySummary = ()=>{
+    const summaryContainer = document.querySelector("#summary");
+    let products = db.products;
+    let inventories = db.inventory;
+    if(products.length == 0){
+        const p = document.createElement("p");
+        p.textContent = "No data";
+        summaryContainer.appendChild(p);
+    }
+    else{
+        
+            products.forEach(p=>{
+                const holder = document.createElement("DIV");
+                holder.classList.add("my-2");
+                const pname = document.createElement("label");
+                pname.id = "pname";
+                pname.textContent = p.name+", "+p.pack_size;
+                const inv = document.createElement("span");
+                inv.id="invoice";
+                inv.textContent = "Inv. No: 088998773";
+                const qtty = document.createElement("span");
+                qtty.id="quantity";
+                qtty.textContent = "2300 cartons, Tsh.56,000,0000";
+                holder.appendChild(pname);
+                holder.appendChild(inv);
+                holder.appendChild(qtty);
+    
+                summaryContainer.appendChild(holder);
+            })
+        
+       
+    }
+}
 //generate random string id;
 const randomId = (strength)=>{
     var result           = '';
@@ -702,6 +736,11 @@ if(window.location.pathname == "/products.html"){
            });
         }
     }
+}
+
+//check if current page is inventory.html
+if(window.location.pathname == "/inventory.html"){
+    showInventorySummary();
 }
 
 //check if current page is add supplier

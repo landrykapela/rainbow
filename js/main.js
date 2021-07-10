@@ -258,11 +258,12 @@ if(db === undefined || db === null){
     storage.setItem("db",JSON.stringify(data));
     db = storage.getItem("db");
 }
-
 db = JSON.parse(db);
 
 //Functions start
-
+const thousandSeparator =(x)=> {
+    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
 //encode image
 const encodeImage = (file)=>{
     var reader = new FileReader();
@@ -486,29 +487,27 @@ const showInventorySummary = ()=>{
     const summaryContainer = document.querySelector("#summary");
     let products = db.products;
     let inventories = db.inventory;
-    if(products.length == 0){
+    if(products.length == 0 || inventories.length ==0){
         const p = document.createElement("p");
         p.textContent = "No data";
         summaryContainer.appendChild(p);
     }
     else{
         
-            products.forEach(p=>{
+            inventories.forEach(inventory=>{
                 const holder = document.createElement("DIV");
                 holder.classList.add("my-2");
                 const pname = document.createElement("label");
-                pname.id = "pname";
-                pname.textContent = p.name+", "+p.pack_size;
+                pname.textContent = inventory.product.name+", "+inventory.product.pack_size;
                 const inv = document.createElement("span");
                 inv.id="invoice";
-                inv.textContent = "Inv. No: 088998773";
+                inv.innerHTML = "<a href='"+inventory.invoice+"' target='_blank'>Inv. No: "+inventory.invoice_no+"</a>";
                 const qtty = document.createElement("span");
                 qtty.id="quantity";
-                qtty.textContent = "2300 cartons, Tsh.56,000,0000";
+                qtty.textContent = inventory.quantity+" cartons, Tsh."+thousandSeparator(inventory.quantity * inventory.selling_price);
                 holder.appendChild(pname);
                 holder.appendChild(inv);
                 holder.appendChild(qtty);
-    
                 summaryContainer.appendChild(holder);
             })
         
@@ -576,7 +575,15 @@ const confirmDelete = (itemType,itemId)=>{
     }
 }
 
-
+//save inventory
+const saveInventory = (inv)=>{
+    inv.id = randomId(12);
+    let inventory = db.inventory;
+    inventory.push(inv);
+    db.inventory = inventory;
+    storage.setItem("db",JSON.stringify(db));
+    window.location.pathname = "/inventory.html";
+}
 //update supplier
 const updateSupplier = (supplier)=>{
     var suppliers= db.suppliers.map(s=>{
@@ -740,7 +747,121 @@ if(window.location.pathname == "/products.html"){
 
 //check if current page is inventory.html
 if(window.location.pathname == "/inventory.html"){
+    let login = checkLogin();
+    if(login){
     showInventorySummary();
+    }
+    
+}
+
+//check if current page is receive.html
+if(window.location.pathname == "/receive.html"){
+    let login = checkLogin();
+    if(login){
+    const form = document.querySelector("#receive_form");
+    if(form){
+        if(db.products.length == 0){
+            if(confirm("There are no products. Please register a product")){
+                window.location.pathname = "/add_product.html";
+            }
+            
+        }
+        else{
+        db.products.forEach(p=>{
+            form.product.options.add(new Option(p.name,p.id));
+        });
+        db.suppliers.forEach(s=>{
+            form.supplier.options.add(new Option(s.name,s.id));
+        });
+       
+        form.pack_size.value = db.products[0].pack_size;
+        form.product.addEventListener('change',(e)=>{
+            let pd = db.products.filter(p=>{
+                return p.id === e.target.value;
+            });
+            form.pack_size.value = pd[0].pack_size;
+        });
+        form.cif.addEventListener('change',(e)=>{
+            let cif = parseFloat(e.target.value);
+            let tpri = (form.tpri.value) ? parseFloat(form.tpri.value) : 0;
+            let clearing = (form.clearing.value) ? parseFloat(form.clearing.value) : 0;
+            let quantity = (form.quantity.value && form.quantity.value > 0) ? parseInt(form.quantity.value) : 1;
+
+            let price = (cif + tpri + clearing)/quantity;
+            console.log("check: ",quantity+"/"+tpri+"/"+clearing+"/"+cif+"/"+price);
+            form.buying_price.value = price;
+        });
+        form.tpri.addEventListener('change',(e)=>{
+            let tpri = parseFloat(e.target.value);
+            let cif = (form.cif.value) ? parseFloat(form.cif.value) : 0;
+            let clearing = (form.clearing.value) ? parseFloat(form.clearing.value) : 0;
+            let quantity = (form.quantity.value && form.quantity.value > 0) ? parseInt(form.quantity.value) : 1;
+
+            let price = (cif + tpri + clearing)/quantity;
+            console.log("check: ",quantity+"/"+tpri+"/"+clearing+"/"+cif+"/"+price);
+            form.buying_price.value = price;
+        });
+        form.clearing.addEventListener('change',(e)=>{
+            let clearing = parseFloat(e.target.value);
+            let tpri = (form.tpri.value) ? parseFloat(form.tpri.value) : 0;
+            let cif = (form.cif.value) ? parseFloat(form.cif.value) : 0;
+            let quantity = (form.quantity.value && form.quantity.value > 0) ? parseInt(form.quantity.value) : 1;
+
+            let price = (cif + tpri + clearing)/quantity;
+            console.log("check: ",quantity+"/"+tpri+"/"+clearing+"/"+cif+"/"+price);
+            form.buying_price.value = price;
+        });
+        form.quantity.addEventListener('change',(e)=>{
+            let quantity = parseInt(e.target.value);
+            let tpri = (form.tpri.value) ? parseFloat(form.tpri.value) : 0;
+            let clearing = (form.clearing.value) ? parseFloat(form.clearing.value) : 0;
+            let cif = (form.cif.value ) ? parseFloat(form.cif.value) : 0;
+            let price = (cif + tpri + clearing)/quantity;
+            console.log("check: ",quantity+"/"+tpri+"/"+clearing+"/"+cif+"/"+price);
+            form.buying_price.value = price;
+        });
+        
+        
+        
+        form.addEventListener('submit',(e)=>{
+            e.preventDefault();
+            let productId = form.product[form.product.options.selectedIndex].value;
+            let supplierId = form.supplier[form.supplier.options.selectedIndex].value;
+            let product = db.products.filter(p=>{
+                return p.id === productId;
+            });
+            let supplier = db.suppliers.filter(s=>{
+                return s.id === supplierId;
+            })
+            let pack_size = form.pack_size.value;
+            let quantity = parseInt(form.quantity.value);
+            let invoice_no = form.invoice.value;
+            let cif = parseFloat(form.cif.value);
+            let tpri=parseFloat(form.tpri.value);
+            let clearing = parseFloat(form.clearing.value);
+            let b_price = parseFloat(form.buying_price.value);
+            let s_price =parseFloat(form.selling_price.value);
+            let file = form.invoice_file.files[0];
+            let invoice_file = null;
+            let inventory = {product:product[0],supplier:supplier[0],invoice_no:invoice_no,quantity:quantity,cif:cif,tpri:tpri,clearing:clearing,buying_price:b_price,selling_price:s_price,invoice:invoice_file};
+
+            if(file){
+                var reader = new FileReader();
+                reader.addEventListener('load',()=>{
+                    invoice_file = reader.result;
+                    inventory.invoice = invoice_file;
+                    saveInventory(inventory);
+                },false);
+                reader.readAsDataURL(file)
+            }
+            else{
+                saveInventory(inventory);
+            }
+
+        })
+    }
+}
+    }
 }
 
 //check if current page is add supplier

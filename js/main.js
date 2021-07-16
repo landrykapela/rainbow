@@ -253,13 +253,41 @@ const countryList = [
     "Zimbabwe"
   ];
 let db = storage.getItem("db");
-storage.removeItem("transactions");
 if(db === undefined || db === null){
     let data = {suppliers:[],products:[],users:[],transactions:[],inventory:[],customers:[],reps:[]};
     storage.setItem("db",JSON.stringify(data));
     db = storage.getItem("db");
 }
 db = JSON.parse(db);
+if(db.suppliers === undefined){
+    db.suppliers = [];
+    storage.setItem("db",JSON.stringify(db));
+}
+if(db.products === undefined){
+    db.products = [];
+    storage.setItem("db",JSON.stringify(db));
+    db = JSON.parse(storage.getItem("db"));
+}
+if(db.customers === undefined){
+    db.customers = [];
+    storage.setItem("db",JSON.stringify(db));
+    db = JSON.parse(storage.getItem("db"));
+}
+if(db.inventory === undefined){
+    db.inventory = [];
+    storage.setItem("db",JSON.stringify(db));
+    db = JSON.parse(storage.getItem("db"));
+}
+if(db.users === undefined){
+    db.users = [];
+    storage.setItem("db",JSON.stringify(db));
+    db = JSON.parse(storage.getItem("db"));
+}
+if(db.transactions === undefined){
+    db.transactions = [];
+    storage.setItem("db",JSON.stringify(db));
+    db = JSON.parse(storage.getItem("db"));
+}
 
 //Functions start
 const thousandSeparator =(x)=> {

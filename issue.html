@@ -40,54 +40,54 @@
       </header>
       <section class="dashboard">
     <div class="content">
-      <div class="logo">
-        <img src="img/products.svg" alt="Sales rep feature image" />
-        <p class="medium-text">Add New Product</p>
-      </div>
-      <div class="col-md-4 col-lg-4 col-sm-10">
-        <form id="new_product_form"
-          class="col-md-8 col-lg-8 col-sm-10"
+      
+      <div class="col-md-10 col-lg-10 col-sm-10 offset-1">
+        <span class="medium-text">Issue Stock</span>
+        <form id="issue_form"
+          class="col-md-10 col-lg-10 col-sm-10 offset-1"
           method="post"
         >
-        <div class="form-group my-2">
-            <input
-              type="text"
-              class="form-control"
-              id="name"
-              name="name"
-              placeholder="Product name"
-            />
-          </div>
-          <div class="form-group my-2">
-            <input
-              type="text"
-              class="form-control"
-              id="description"
-              name="description"
-              placeholder="Product Description"
-            />
-          </div>
-          <div class="form-group my-2">
-              <label for="pack_size">Select Pack Size</label>
+        <div class="row">
+        <div class="form-group my-2 col-md-6 col-lg-6 col-sm-10">
+          <label for="rep">Select Rep</label>
+          <select
+            type="text"
+            class="form-control"
+            id="rep"
+            name="rep"></select>
+         
+        </div>
+        <div class="form-group my-2 col-md-6 col-lg-6 col-sm-10">
+            <label for="product">Select Product</label>
             <select
               class="form-control"
-              id="pack_size"
-              name="pack_size">
-              <option>100ML</option>
-              <option>250ML</option>
-              <option>500ML</option>
-              <option>1LT</option>
+              id="product"
+              name="product">
             </select>
-            </div>
-            <div class="form-group my-2">
-               
-              <input
-              type="file"
-                class="form-control"
-                id="image_file"
-                name="image_file"/>
-               
-              </div>
+          </div>
+         
+        </div> 
+        <div class="row">
+          <div class="form-group my-2 col-md-6 col-lg-6 col-sm-10">
+            <label for="invoice">Select Invoice Number</label>
+            <select
+              class="form-control"
+              id="invoice"
+              name="invoice"></select>
+          </div>
+          <div class="form-group my-2 col-md-6 col-lg-6 col-sm-10">
+            <label for="quantity">Quantity</label>
+            <input
+              type="number"
+              class="form-control"
+              id="quantity"
+              name="quantity"
+              placeholder="Number of cartons"
+            />
+          </div>
+           
+          </div>
+
          <div class="form-group my-2 row">
           <div class="my-2 col-md-6 col-lg-6 col-sm-10">
             <input

@@ -253,6 +253,7 @@ const countryList = [
     "Zimbabwe"
   ];
 let db = storage.getItem("db");
+storage.removeItem("transactions");
 if(db === undefined || db === null){
     let data = {suppliers:[],products:[],users:[],transactions:[],inventory:[],customers:[],reps:[]};
     storage.setItem("db",JSON.stringify(data));
@@ -493,23 +494,36 @@ const showInventorySummary = ()=>{
         summaryContainer.appendChild(p);
     }
     else{
-        
-            inventories.forEach(inventory=>{
-                const holder = document.createElement("DIV");
-                holder.classList.add("my-2");
-                const pname = document.createElement("label");
-                pname.textContent = inventory.product.name+", "+inventory.product.pack_size;
-                const inv = document.createElement("span");
-                inv.id="invoice";
-                inv.innerHTML = "<a href='"+inventory.invoice+"' target='_blank'>Inv. No: "+inventory.invoice_no+"</a>";
-                const qtty = document.createElement("span");
-                qtty.id="quantity";
-                qtty.textContent = inventory.quantity+" cartons, Tsh."+thousandSeparator(inventory.quantity * inventory.selling_price);
-                holder.appendChild(pname);
-                holder.appendChild(inv);
-                holder.appendChild(qtty);
-                summaryContainer.appendChild(holder);
+        if(db.transactions.length > 0){
+            inventories = db.inventory.map(inv=>{
+                let invNew = inv;
+                db.transactions.forEach(tx=>{
+                    if(tx.invoice_no === inv.invoice_no && inv.product.id == tx.product.id){
+                        invNew.quantity -= tx.quantity;
+                    }
+                });
+                return invNew;
             })
+        }
+       
+        inventories.forEach(inventory=>{
+            const holder = document.createElement("DIV");
+            holder.classList.add("my-2");
+            const pname = document.createElement("label");
+            pname.textContent = inventory.product.name+", "+inventory.product.pack_size;
+            const inv = document.createElement("a");
+            inv.id="invoice";
+            inv.href="view.html?id="+inventory.id;
+            inv.target='_blank';
+            inv.textContent = "Inv. No: "+inventory.invoice_no;
+            const qtty = document.createElement("span");
+            qtty.id="quantity";
+            qtty.textContent = inventory.quantity+" cartons, Tsh."+thousandSeparator(inventory.quantity * inventory.selling_price);
+            holder.appendChild(pname);
+            holder.appendChild(inv);
+            holder.appendChild(qtty);
+            summaryContainer.appendChild(holder);
+        })
         
        
     }
@@ -573,6 +587,16 @@ const confirmDelete = (itemType,itemId)=>{
     else{
         return;
     }
+}
+
+//save transaction
+const saveTransaction=(transaction)=>{
+    transaction.id = randomId(12);
+    let transactions = db.transactions;
+    transactions.push(transaction);
+    db.transactions = transactions;
+    storage.setItem("db",JSON.stringify(db));
+    window.location.pathname = "/inventory.html";
 }
 
 //save inventory
@@ -767,97 +791,176 @@ if(window.location.pathname == "/receive.html"){
             
         }
         else{
-        db.products.forEach(p=>{
-            form.product.options.add(new Option(p.name,p.id));
-        });
-        db.suppliers.forEach(s=>{
-            form.supplier.options.add(new Option(s.name,s.id));
-        });
-       
-        form.pack_size.value = db.products[0].pack_size;
-        form.product.addEventListener('change',(e)=>{
-            let pd = db.products.filter(p=>{
-                return p.id === e.target.value;
+            db.products.sort((p1,p2)=>{
+                return (p1.name < p2.name) ? -1:1
+            }).forEach(p=>{
+                form.product.options.add(new Option(p.name+" ("+p.pack_size+")",p.id));
             });
-            form.pack_size.value = pd[0].pack_size;
-        });
-        form.cif.addEventListener('change',(e)=>{
-            let cif = parseFloat(e.target.value);
-            let tpri = (form.tpri.value) ? parseFloat(form.tpri.value) : 0;
-            let clearing = (form.clearing.value) ? parseFloat(form.clearing.value) : 0;
-            let quantity = (form.quantity.value && form.quantity.value > 0) ? parseInt(form.quantity.value) : 1;
-
-            let price = (cif + tpri + clearing)/quantity;
-            console.log("check: ",quantity+"/"+tpri+"/"+clearing+"/"+cif+"/"+price);
-            form.buying_price.value = price;
-        });
-        form.tpri.addEventListener('change',(e)=>{
-            let tpri = parseFloat(e.target.value);
-            let cif = (form.cif.value) ? parseFloat(form.cif.value) : 0;
-            let clearing = (form.clearing.value) ? parseFloat(form.clearing.value) : 0;
-            let quantity = (form.quantity.value && form.quantity.value > 0) ? parseInt(form.quantity.value) : 1;
-
-            let price = (cif + tpri + clearing)/quantity;
-            console.log("check: ",quantity+"/"+tpri+"/"+clearing+"/"+cif+"/"+price);
-            form.buying_price.value = price;
-        });
-        form.clearing.addEventListener('change',(e)=>{
-            let clearing = parseFloat(e.target.value);
-            let tpri = (form.tpri.value) ? parseFloat(form.tpri.value) : 0;
-            let cif = (form.cif.value) ? parseFloat(form.cif.value) : 0;
-            let quantity = (form.quantity.value && form.quantity.value > 0) ? parseInt(form.quantity.value) : 1;
-
-            let price = (cif + tpri + clearing)/quantity;
-            console.log("check: ",quantity+"/"+tpri+"/"+clearing+"/"+cif+"/"+price);
-            form.buying_price.value = price;
-        });
-        form.quantity.addEventListener('change',(e)=>{
-            let quantity = parseInt(e.target.value);
-            let tpri = (form.tpri.value) ? parseFloat(form.tpri.value) : 0;
-            let clearing = (form.clearing.value) ? parseFloat(form.clearing.value) : 0;
-            let cif = (form.cif.value ) ? parseFloat(form.cif.value) : 0;
-            let price = (cif + tpri + clearing)/quantity;
-            console.log("check: ",quantity+"/"+tpri+"/"+clearing+"/"+cif+"/"+price);
-            form.buying_price.value = price;
-        });
+            db.suppliers.forEach(s=>{
+                form.supplier.options.add(new Option(s.name,s.id));
+            });
         
+            form.cif.addEventListener('input',(e)=>{
+                // form.cif.value = thousandSeparator(e.target.value);
+                let cif = parseFloat(e.target.value);
+                let tpri = (form.tpri.value) ? parseFloat(form.tpri.value) : 0;
+                let clearing = (form.clearing.value) ? parseFloat(form.clearing.value) : 0;
+                let quantity = (form.quantity.value && form.quantity.value > 0) ? parseInt(form.quantity.value) : 1;
+
+                let price = (cif + tpri + clearing)/quantity;
+                form.buying_price.value = price;
+            });
+            form.tpri.addEventListener('input',(e)=>{
+                let tpri = parseFloat(e.target.value);
+                let cif = (form.cif.value) ? parseFloat(form.cif.value) : 0;
+                let clearing = (form.clearing.value) ? parseFloat(form.clearing.value) : 0;
+                let quantity = (form.quantity.value && form.quantity.value > 0) ? parseInt(form.quantity.value) : 1;
+
+                let price = (cif + tpri + clearing)/quantity;
+                console.log("check: ",quantity+"/"+tpri+"/"+clearing+"/"+cif+"/"+price);
+                form.buying_price.value = price;
+            });
+            form.clearing.addEventListener('input',(e)=>{
+                let clearing = parseFloat(e.target.value);
+                let tpri = (form.tpri.value) ? parseFloat(form.tpri.value) : 0;
+                let cif = (form.cif.value) ? parseFloat(form.cif.value) : 0;
+                let quantity = (form.quantity.value && form.quantity.value > 0) ? parseInt(form.quantity.value) : 1;
+
+                let price = (cif + tpri + clearing)/quantity;
+                console.log("check: ",quantity+"/"+tpri+"/"+clearing+"/"+cif+"/"+price);
+                form.buying_price.value = price;
+            });
+            form.quantity.addEventListener('input',(e)=>{
+                let quantity = parseInt(e.target.value);
+                let tpri = (form.tpri.value) ? parseFloat(form.tpri.value) : 0;
+                let clearing = (form.clearing.value) ? parseFloat(form.clearing.value) : 0;
+                let cif = (form.cif.value ) ? parseFloat(form.cif.value) : 0;
+                let price = (cif + tpri + clearing)/quantity;
+                console.log("check: ",quantity+"/"+tpri+"/"+clearing+"/"+cif+"/"+price);
+                form.buying_price.value = price;
+            });
+            form.addEventListener('submit',(e)=>{
+                e.preventDefault();
+                let productId = form.product[form.product.options.selectedIndex].value;
+                let supplierId = form.supplier[form.supplier.options.selectedIndex].value;
+                let product = db.products.filter(p=>{
+                    return p.id === productId;
+                });
+                let supplier = db.suppliers.filter(s=>{
+                    return s.id === supplierId;
+                })
+                
+                let quantity = parseInt(form.quantity.value);
+                let invoice_no = form.invoice.value;
+                let cif = parseFloat(form.cif.value);
+                let tpri=parseFloat(form.tpri.value);
+                let clearing = parseFloat(form.clearing.value);
+                let b_price = parseFloat(form.buying_price.value);
+                let s_price =parseFloat(form.selling_price.value);
+                let file = form.invoice_file.files[0];
+                let invoice_file = null;
+                let inventory = {product:product[0],supplier:supplier[0],invoice_no:invoice_no,quantity:quantity,cif:cif,tpri:tpri,clearing:clearing,buying_price:b_price,selling_price:s_price,invoice:invoice_file};
+
+                if(file){
+                    var reader = new FileReader();
+                    reader.addEventListener('load',()=>{
+                        invoice_file = reader.result;
+                        inventory.invoice = invoice_file;
+                        saveInventory(inventory);
+                    },false);
+                    reader.readAsDataURL(file)
+                }
+                else{
+                    saveInventory(inventory);
+                }
+
+            })
+    }
+}
+    }
+}
+
+//check if current page is issue.html
+if(window.location.pathname == "/issue.html"){
+    let login = checkLogin();
+    if(login){
+    const form = document.querySelector("#issue_form");
+    if(form){
+        if(db.reps.length ==0 ){
+            if(confirm("There are no reps to issue to. Please register a sales rep")){
+                window.location.pathname = "/add_rep.html";
+            }
+        }
+        else if(db.products.length == 0){
+            if(confirm("There are no products. Please register a product")){
+                window.location.pathname = "/add_product.html";
+            }
+            
+        }
+        else{
+            let products = [];
+            db.inventory.forEach(inv=>{
+                if(!products.includes(inv.product.id)) products.push(inv.product);
+            })
+            products.sort((p1,p2)=>{
+                if(p1.name < p2.name) return -1; else return 1
+            })
+            products.forEach(p=>{
+                form.product.options.add(new Option(p.name+" ("+p.pack_size+")",p.id));
+            });
+        
+            let inventory = db.inventory.filter(inv=>{
+                return inv.product.id == products[0].id;
+            });
+            form.invoice.options.add(new Option(inventory[0].invoice_no));
+            form.quantity.setAttribute("max",inventory[0].quantity);
+            form.product.addEventListener('change',(e)=>{
+                let pd = products.filter(p=>{
+                    return p.id === e.target.value;
+                });
+                let inventory = db.inventory.filter(inv=>{
+                    return inv.product.id == pd[0].id;
+                });
+                while(form.invoice.hasChildNodes()){
+                    form.invoice.removeChild(form.invoice.childNodes[0]);
+                }
+                inventory.forEach(inv=>{
+                    form.invoice.options.add(new Option(inv.invoice_no));
+                })
+            });
+            form.invoice.addEventListener('change',(e)=>{
+                let inventory = db.inventory.filter(inv=>{
+                    return inv.invoice_no == e.target.value;
+                });
+                form.quantity.setAttribute("max",inventory[0].quantity);
+            })
+            form.quantity.addEventListener('change',(e)=>{
+                let quantity = parseInt(e.target.value);
+                
+            });
+            db.reps.forEach(rep=>{
+                form.rep.options.add(new Option(rep.first_name+" "+rep.last_name,rep.id));
+            })
         
         
         form.addEventListener('submit',(e)=>{
             e.preventDefault();
             let productId = form.product[form.product.options.selectedIndex].value;
-            let supplierId = form.supplier[form.supplier.options.selectedIndex].value;
+            let repId = form.rep[form.rep.options.selectedIndex].value;
             let product = db.products.filter(p=>{
                 return p.id === productId;
             });
-            let supplier = db.suppliers.filter(s=>{
-                return s.id === supplierId;
+            let rep = db.reps.filter(s=>{
+                return s.id === repId;
             })
-            let pack_size = form.pack_size.value;
             let quantity = parseInt(form.quantity.value);
-            let invoice_no = form.invoice.value;
-            let cif = parseFloat(form.cif.value);
-            let tpri=parseFloat(form.tpri.value);
-            let clearing = parseFloat(form.clearing.value);
-            let b_price = parseFloat(form.buying_price.value);
-            let s_price =parseFloat(form.selling_price.value);
-            let file = form.invoice_file.files[0];
-            let invoice_file = null;
-            let inventory = {product:product[0],supplier:supplier[0],invoice_no:invoice_no,quantity:quantity,cif:cif,tpri:tpri,clearing:clearing,buying_price:b_price,selling_price:s_price,invoice:invoice_file};
-
-            if(file){
-                var reader = new FileReader();
-                reader.addEventListener('load',()=>{
-                    invoice_file = reader.result;
-                    inventory.invoice = invoice_file;
-                    saveInventory(inventory);
-                },false);
-                reader.readAsDataURL(file)
-            }
-            else{
-                saveInventory(inventory);
-            }
-
+            let invoice_no = form.invoice.options[form.invoice.options.selectedIndex].value;
+            let inv = db.inventory.filter(inv=>{
+                return inv.invoice_no == invoice_no && inv.product.id == productId;
+            });
+            let amount = inv[0].selling_price * quantity;
+            let transaction = {rep:repId,rep_name:rep[0].first_name+" "+rep[0].last_name,product:product[0],invoice_no:invoice_no,quantity:quantity,amount:amount};
+            saveTransaction(transaction);
         })
     }
 }
@@ -1218,4 +1321,15 @@ if(window.location.pathname == "/edit_rep.html"){
     }
     
 }
+}
+if(window.location.pathname == "/view.html"){
+    var urlObject = new URL(window.location.href);
+    var params = urlObject.searchParams;
+    var id = params.get("id");
+    console.log("my image: ",id);
+    var inv = db.inventory.filter(inv=>{
+        return inv.id == id;
+    })
+    document.title = "Invoice number "+inv[0].invoice_no;
+    document.getElementById("image_viewer").src = inv[0].invoice;
 }

@@ -1,2 +1,4 @@
 node_modules
 css/.sass-cache
+data
+backend/config.php

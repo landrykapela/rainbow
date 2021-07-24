@@ -4,6 +4,7 @@ $secondaryColor: #045e13;
 $faint:#9c989852;
 $faintDark:#312f2f;
 $defaultColor: white;
+$defaultColorTrans: rgba(255, 255, 255, 0.534);
 
 @mixin shade {
   box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
@@ -267,7 +268,15 @@ img.image_viewer{
   color:$defaultColor !important;
 }
 
-
+.feedback,.error{
+  border:1px solid white;
+  @include setBg($defaultColorTrans);
+  text-align: center;
+}
+.error{
+  color: red;
+  font-size:small;
+}
 //spinner
 #spinner{
   display:block;
@@ -278,7 +287,9 @@ img.image_viewer{
   border-top:none;
   animation: spin 1s linear 0s 3 forwards;
 }
-
+.hidden{
+  display: none !important;
+}
 @keyframes spin{
   from{
     transform:rotate(0deg);

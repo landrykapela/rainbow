@@ -252,6 +252,8 @@ const countryList = [
     "Zambia",
     "Zimbabwe"
   ];
+const DATA_COUNT = 12;
+const NUMBER_CFG = {count: DATA_COUNT, min: 0, max: 100};
 let db = storage.getItem("db");
 if(db === undefined || db === null){
     let data = {suppliers:[],products:[],users:[],transactions:[],inventory:[],customers:[],reps:[]};
@@ -307,6 +309,10 @@ const encodeImage = (file)=>{
     console.log("result: ",reader.result);
     return reader.result;
 }
+const showHideSpinner=(flag)=>{
+    if(flag ==0) document.querySelector('#spinner').classList.add("hidden");
+    else  document.querySelector('#spinner').classList.remove("hidden");
+}
 //simulate page load
 const simulateLoad =(waitTime,followFunction)=>{
     setTimeout(()=>{
@@ -314,6 +320,55 @@ const simulateLoad =(waitTime,followFunction)=>{
         followFunction();
     },waitTime);
 }
+const generateRandomData = (count)=>{
+    var result = [];
+    for(let i=0; i<count;i++){
+        let random = Math.floor(Math.random() * (NUMBER_CFG.max - NUMBER_CFG.min + 1)) + NUMBER_CFG.min;
+        result.push(random);
+    }
+    return result;
+}
+const generateChart = ()=>{
+    let chartArea = document.getElementById("chart-area");
+    while(chartArea.hasChildNodes()){
+        chartArea.removeChild(chartArea.childNodes[0]);
+    }
+    const canvas = document.createElement("canvas");
+    // canvas.getContext("2d");
+    chartArea.appendChild(canvas);
+    
+    const labels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    let data = {
+        labels: labels,
+        datasets: [
+            {
+            label: 'Sales',
+            data: generateRandomData(NUMBER_CFG.count),
+            borderColor: "#cc9900",
+            backgroundColor: "#045e13",
+            },
+            
+        ]
+    }
+    let config = {
+        type: 'line',   
+        data: data,
+        options: {
+          responsive: true,
+          plugins: {
+        
+            title: {
+              display: true,
+              text: 'Annual Sales'
+            }
+          }
+        },
+    }
+    return new Chart(config,canvas);
+    
+}
+
+
 //check login 
 const checkLogin = ()=>{
     let u = session.getItem("session");
@@ -323,7 +378,7 @@ const checkLogin = ()=>{
     }
     else{
         let user = JSON.parse(u);
-        document.querySelector("#login").textContent = user.uname.split("@")[0];
+        document.querySelector("#login").textContent = user.fname;
         return true;
     }
 }
@@ -340,7 +395,7 @@ const showToastMessage = (message)=>{
 
 //load product list
 const listProducts = (products)=>{
-    console.log(products);
+    // console.log("p: ",products);
     const listContainer = document.querySelector("#list_container");
     products.forEach(p=>{
         const itemList = document.createElement("div");
@@ -353,7 +408,7 @@ const listProducts = (products)=>{
         const image = document.createElement("img");
 
         itemList.classList.add("item-list");
-        image.src = (p.image) ? p.image : "/img/no_data.svg";
+        image.src = (p.image) ? "/data/"+p.image : "/img/no_data.svg";
         image.alt = p.description;
         image.classList.add("item-image")
         itemList.appendChild(image);
@@ -695,12 +750,28 @@ const saveRep = (rep)=>{
 }
 //save product
 const saveProduct = (product)=>{
-    var products = db.products;
-    product.id = randomId(12);
-    products.push(product);
-    db.products = products;
-    storage.setItem("db",JSON.stringify(db));
-    window.location.pathname="/products.html";
+    console.log("prods: ",product);
+    var formData = new FormData();
+    formData.append("name",product.name);
+    formData.append("description",product.description);
+    formData.append("pack_size",product.pack_size);
+    formData.append("user_id",product.user_id);
+    formData.append("image",product.image);
+    formData.append("btnAddProduct","addProduct");
+    // console.log("formdata: ",JSON.stringify(formData));
+    var options = {
+        method:"POST",
+        body:formData,
+        
+    }
+    fetch("/backend/?tag=product",options)
+    .then(res=>res.json())
+    .then(result=>{
+        console.log("result: ",result);
+    })
+    .catch(err=>{
+        console.log("err: ",err);
+    })
 }
 
 //update product
@@ -725,15 +796,86 @@ if(loginForm){
         let inputs = Array.from(loginForm.elements);
         let email = inputs[0].value.trim();
         let pword = inputs[1].value.trim();
-        let user = {uname:email,pword:pword};
-        session.setItem("session",JSON.stringify(user));
-        window.location.pathname = "/dashboard.html";
+        let user = {email:email,password:pword,btnLogin:"login"};
+        var options = {
+            body:JSON.stringify(user),
+            method:"POST",headers:{'Content-type':'application/json'}
+        }
+        fetch("/backend/",options)
+        .then(res=>res.json())
+        .then(result=>{
+            if(result.code == 1){
+                var feedback = document.querySelector("#feedback");
+                feedback.textContent = result.msg;
+                feedback.classList.remove("hidden");
+            }
+            else{
+                session.setItem("session",JSON.stringify(result.user));
+                window.location.pathname = "/dashboard.html";
+            }
+        })
+        .catch(e=>{
+            console.log(e);
+            var feedback = document.querySelector("#feedback");
+                feedback.textContent = "Something went wrong";
+                feedback.classList.remove("hidden");
+        })
+        
     })
 }
 
+//process signup form
+const signupForm = document.querySelector("#signupform");
+if(signupForm){
+    let inputs = Array.from(signupForm.elements);
+    let fname = inputs[0];
+    let lname = inputs[1];
+    let email = inputs[2];
+    let pword = inputs[3];
+    let cpword = inputs[4];
+    const err = document.querySelector("#error");
+    cpword.addEventListener('input',(e)=>{
+        if(e.target.value !== pword.value){
+            err.textContent = "Passwords do not match";
+            err.classList.remove("hidden");
+        }
+        else{
+            err.textContent = "";
+            err.classList.add("hidden");
+        }
+    })
+    signupForm.addEventListener("submit",(event)=>{
+        event.preventDefault();
+        let data = {btnSignup:"signup",fname:fname.value,lname:lname.value,email:email.value,password:pword.value}
+        var options = {
+            body:JSON.stringify(data),
+            method:"POST",headers:{'Content-type':'application/json'}
+        }
+        fetch("/backend/",options)
+        .then(res=>res.json())
+        .then(result=>{
+            if(result.code == 1){
+                var feedback = document.querySelector("#feedback");
+                feedback.textContent = result.msg;
+                feedback.classList.remove("hidden");
+            }
+            else{
+                console.log("result: ",result);
+                session.setItem("session",JSON.stringify(result.user));
+                window.location.pathname = "/dashboard.html";
+            }
+        })
+        .catch(e=>{
+            console.log(e);
+        })
+    })
+}
+
+
 //check if dashboard is loaded
 if(window.location.pathname == "/dashboard.html"){
-  checkLogin();
+  var login = checkLogin();
+//   if(login) generateChart();
 }
 
 
@@ -781,19 +923,28 @@ if(window.location.pathname == "/suppliers.html"){
 if(window.location.pathname == "/products.html"){
     let login = checkLogin();
     if(login){
-        let products = db.products;
-        if(products.length === 0){
-            simulateLoad(1000,()=>{
-                window.location.pathname = "/add_product.html";
-            });
-            
-        }
-        else{
-           
-           simulateLoad(1000,()=>{
-               listProducts(products);
-           });
-        }
+        showHideSpinner(1);
+        var userId = JSON.parse(session.getItem("session")).id;
+        fetch("/backend/?uid="+userId,{
+            method:"GET"
+        }).then(res=>res.json())
+        .then(result=>{
+            showHideSpinner(0);
+            let products = result.products;
+            console.log("result: ",result);
+            db.products = products;
+            storage.setItem("db",JSON.stringify(db));
+            db = JSON.parse(storage.getItem("db"));
+            if(products.length === 0){
+                simulateLoad(1000,()=>{
+                    window.location.pathname = "/add_product.html";
+                });
+            }
+            else{
+                listProducts(products);
+            }
+        }).catch(e=>{console.log(e)})
+        
     }
 }
 
@@ -1081,22 +1232,9 @@ if(window.location.pathname == "/add_product.html"){
             let pack_size = document.getElementById("pack_size").value;
             let file = document.getElementById("image_file").files[0];
 
-            let fileData = null;
-            let prod = {name:name,description:description,pack_size:pack_size,image:fileData};
-            if(file){
-                let reader = new FileReader();
-                reader.addEventListener('load',()=>{
-                    fileData = reader.result;
-                    prod.image = fileData;
-                    saveProduct(prod);
-                },false);
-                reader.readAsDataURL(file);
-            }
-            else{
-                console.log("no file");
-                saveProduct(prod);
-            }
-           
+            var userId = JSON.parse(session.getItem("session")).id;
+            let prod = {name:name,description:description,pack_size:pack_size,image:file,user_id:userId};
+            saveProduct(prod);
         })
     }
 }

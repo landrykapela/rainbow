@@ -23,24 +23,24 @@ else{
     $content = json_decode($raw);
     // echo $raw;
     //check signup form
-    // if(isset($content->btnSignup)){
-    //     $fname = (isset($content->fname) && !empty($content->fname)) ? filter_var($content->fname,FILTER_SANITIZE_STRING) : null;
-    //     $lname = (isset($content->lname) && !empty($content->lname)) ? filter_var($content->lname,FILTER_SANITIZE_STRING) : null;
-    //     $email = (isset($content->email) && !empty($content->email)) ? filter_var($content->email,FILTER_SANITIZE_EMAIL) : null;
-    //     $password = $content->password;
-    //     $result = array();
+    if(isset($content->btnSignup)){
+        $fname = (isset($content->fname) && !empty($content->fname)) ? filter_var($content->fname,FILTER_SANITIZE_STRING) : null;
+        $lname = (isset($content->lname) && !empty($content->lname)) ? filter_var($content->lname,FILTER_SANITIZE_STRING) : null;
+        $email = (isset($content->email) && !empty($content->email)) ? filter_var($content->email,FILTER_SANITIZE_EMAIL) : null;
+        $password = $content->password;
+        $result = array();
         
-    //     if($fname != null && $lname != null && $email != null){
-    //         $result = $api->signUp($fname,$lname,$email,$password);
-    //         echo json_encode($result);
-    //     }
-    //     else{
-    //         $result['code'] = 1;
-    //         $result['msg'] = "Fill in all required information";
-    //         echo json_encode($result);
-    //     }
+        if($fname != null && $lname != null && $email != null){
+            $result = $api->signUp($fname,$lname,$email,$password);
+            echo json_encode($result);
+        }
+        else{
+            $result['code'] = 1;
+            $result['msg'] = "Fill in all required information";
+            echo json_encode($result);
+        }
         
-    // }
+    }
     
     if(isset($content->btnLogin)){
         $result = array();

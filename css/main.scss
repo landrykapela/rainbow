@@ -93,6 +93,12 @@ header > nav > a.nav-item{
   padding-top:0;
 }
 
+//form inputs
+input:invalid{
+  outline-color: red;
+}
+
+
 // texts formats
 .medium-text {
   font-size: 1.5rem;

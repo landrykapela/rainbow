@@ -101,6 +101,10 @@ header > nav > a.nav-item {
   padding-top: 0;
 }
 
+input:invalid {
+  outline-color: red;
+}
+
 .medium-text {
   font-size: 1.5rem;
 }

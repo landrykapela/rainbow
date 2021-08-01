@@ -1,6 +1,15 @@
 
 const storage = window.localStorage;
 const session = window.sessionStorage;
+
+const signout = ()=>{
+    if(confirm("Are you sure you want to sign out?")){
+        window.localStorage.clear();
+        session.clear();
+        window.location.pathname = "/";
+    }
+    
+}
 const countryList = [
     "Afghanistan",
     "Åland Islands",
@@ -408,7 +417,7 @@ const listProducts = (products)=>{
         const image = document.createElement("img");
 
         itemList.classList.add("item-list");
-        image.src = (p.image) ? "/data/"+p.image : "/img/no_data.svg";
+        image.src = (p.image) ? "data/"+p.image : "/img/no_data.svg";
         image.alt = p.description;
         image.classList.add("item-image")
         itemList.appendChild(image);
@@ -749,15 +758,21 @@ const saveRep = (rep)=>{
     window.location.pathname="/reps.html";
 }
 //save product
-const saveProduct = (product)=>{
+const saveProduct = (product,tag=null)=>{
     console.log("prods: ",product);
     var formData = new FormData();
     formData.append("name",product.name);
     formData.append("description",product.description);
     formData.append("pack_size",product.pack_size);
-    formData.append("user_id",product.user_id);
-    formData.append("image",product.image);
-    formData.append("btnAddProduct","addProduct");
+    formData.append("user_id",product.user);
+    if(product.image) formData.append("image",product.image);
+    if(tag == null || tag.toLowerCase() == "add"){
+        formData.append("btnAddProduct","addProduct");
+    }
+    else{
+        formData.append("id",product.id);
+        formData.append("btnUpdateProduct","updateProduct");
+    }
     // console.log("formdata: ",JSON.stringify(formData));
     var options = {
         method:"POST",
@@ -768,21 +783,29 @@ const saveProduct = (product)=>{
     .then(res=>res.json())
     .then(result=>{
         console.log("result: ",result);
+        if(result.code == 0){
+            db.products = result.products;
+            storage.setItem("db",JSON.stringify(db));
+            window.location.pathname="/products.html";
+        }
+        else showFeedback(result.code,result.msg);
+        
     })
     .catch(err=>{
         console.log("err: ",err);
+        showFeedback(1,"Something went wrong! Please try again later");
     })
 }
-
+//show feedback
+const showFeedback = (tag,msg)=>{
+    var holder = document.getElementById("form-feedback");
+    holder.classList.remove("hidden");
+    if(tag == 0) holder.classList.add("alert-success");
+    else holder.classList.add("alert-danger");
+    holder.textContent = msg;
+}
 //update product
-const updateProduct = (product)=>{
-    var products = db.products.map(p=>{
-        if(p.id === product.id){
-            p = product;
-            
-        }
-        return p;
-    })
+const updateProduct = (products)=>{
     db.products = products;
     storage.setItem("db",JSON.stringify(db));
     window.location.pathname="/products.html";
@@ -929,7 +952,6 @@ if(window.location.pathname == "/products.html"){
             method:"GET"
         }).then(res=>res.json())
         .then(result=>{
-            showHideSpinner(0);
             let products = result.products;
             console.log("result: ",result);
             db.products = products;
@@ -940,10 +962,12 @@ if(window.location.pathname == "/products.html"){
                     window.location.pathname = "/add_product.html";
                 });
             }
-            else{
-                listProducts(products);
-            }
+            
         }).catch(e=>{console.log(e)})
+        .finally(()=>{
+            showHideSpinner(0);
+            listProducts(db.products);
+        })
         
     }
 }
@@ -1258,7 +1282,19 @@ if(window.location.pathname == "/edit_product.html"){
             form.name.value = product[0].name;
             form.description.value = product[0].description;
             form.pack_size.value = product[0].pack_size;
-            document.querySelector("#preview").src = product[0].image;
+            document.querySelector("#preview").src = "/data/"+product[0].image;
+            form.image_file.addEventListener('change',(e)=>{
+                if(e.target.files[0]){
+                    let reader = new FileReader();
+                    reader.addEventListener('load',()=>{
+                        fileData = reader.result;
+                        var url = URL.createObjectURL(e.target.files[0]);
+                        document.getElementById("preview").src = url;
+                    },false);
+                    reader.readAsDataURL(e.target.files[0]);
+                }
+                
+            })
             form.addEventListener('submit',(event)=>{
                 event.preventDefault();
                 let name = document.getElementById("name").value;
@@ -1266,28 +1302,18 @@ if(window.location.pathname == "/edit_product.html"){
                 let pack_size = document.getElementById("pack_size").value;
                 let file = document.getElementById("image_file").files[0];
                 
-                console.log("data: ",name+"/"+description+"/"+pack_size);
-                let fileData = product[0].image;
                 let prod = product[0];
-
+                
                 if(prod.name.toLowerCase() != name.toLowerCase()) prod.name = name;
                 if(prod.description.toLowerCase() != description.toLowerCase()) prod.description = description;
                 if(prod.pack_size != pack_size) prod.pack_size = pack_size;
                 console.log("prod: ",prod);
                 if(file){
-                    let reader = new FileReader();
-                    reader.addEventListener('load',()=>{
-                        fileData = reader.result;
-                        prod.image = fileData;
-                       updateProduct(prod);
-                    },false);
-                    reader.readAsDataURL(file);
+                    prod.image = file;
                 }
-                else{
-                    console.log("no file");
-                    updateProduct(prod);
-                }
+                saveProduct(prod,"edit");
                
+                
             })
         }
     }

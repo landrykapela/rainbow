@@ -21,8 +21,13 @@ class API{
         return $result;
     }
     function saveImage($imageFile,$options){
-        $uploaded_file = __DIR__+"/data/"+$options['tag']+"/".basename($imageFile['name']);
-        move_uploaded_file($options['name'],$upload_dir);
+        $uploaded_file = __DIR__."/data/".$options['tag']."/".basename($imageFile['name']);
+        if(move_uploaded_file($options['name'],$upload_dir)){
+            error_log("successfully uploaded image",3);
+        }
+        else{
+            error_log("what the hell is happening",3);
+        }
     }
     public function signIn($email,$password){
         
@@ -87,7 +92,7 @@ class API{
         $result = array();
         $user = $this->getUserByEmail($email);
 
-        if(!$user){
+        if($user === false){
             $id = $this->generateId(ID_LENGTH);
             $hash = password_hash($password,PASSWORD_BCRYPT);
             $sql = "insert into user (id,fname,lname,email,password) values ('".$id."','".$fname."','".$lname."','".$email."','".$hash."')";
@@ -109,7 +114,7 @@ class API{
         else{
             $result['code'] = 1;
             $result['msg'] = "User already exists, please login";
-            
+            return $result;
         }
         
     }
@@ -130,7 +135,7 @@ class API{
             }
             else{
                 $result['code'] = 0;
-                $result['msg'] =  "Successful";
+                $result['msg'] =  "Successful ";
                 $products = array();
                 while($row = $query->fetch_assoc()) {
                     $products[] = $row;
@@ -141,6 +146,7 @@ class API{
         return $result;
     }
     public function createProduct($name,$description,$packsize,$userId,$image){
+        
         $result = array();
         $user = $this->getUserById($userId);
         if($user === false){
@@ -150,9 +156,11 @@ class API{
         else{
             $id = $this->generateId(5);
             if($image != null){
-                $ext = strtolower(pathinfo(UPLOAD_PATH."prodcuts/".basename($image["name"]),PATHINFO_EXTENSION));
+                $ext = strtolower(pathinfo(UPLOAD_PATH.basename($image["name"]),PATHINFO_EXTENSION));
                 $filename = $id .".".$ext;
                 $path = UPLOAD_PATH.$filename;
+                // file_put_contents("log.log","path: ".$path);
+                // error_log("path: ".$path,3,"log.log");
                 $sql = "insert into products (id,name,description,pack_size,user,image) values ('".$id."','".$name."','".$description."','".$packsize."','".$userId."','".$filename."')";
                 $query = $this->con->query($sql);
                 if(!$query){
@@ -162,15 +170,28 @@ class API{
                 }
                 else{
                     $result['code'] = 0;
-                    $result['msg'] =  "Successful";
+                    $result['msg'] =  "Successful ";
                     $result['products'] = $this->getProducts($userId)['products']; 
-               
-                    if(move_uploaded_file($filename,$path)){
-                        $result['msg'] = "Image successfully uploaded";
+                    if(is_dir(UPLOAD_PATH)){
+                        if(move_uploaded_file($image['tmp_name'],$path)){
+                            $result['msg'] = "Image successfully uploaded";
+                        }
+                        else{
+                            $result['msg'] =  "Could not upload image";
+                           
+                        }
                     }
                     else{
-                        $result['msg'] =  "Could not upload image";
+                        mkdir(UPLOAD_PATH,0777,true);
+                        if(move_uploaded_file($image['tmp_name'],$path)){
+                            $result['msg'] = "Image successfully uploaded";
+                        }
+                        else{
+                            $result['msg'] =  "Could not upload image";
+                           
+                        }
                     }
+                    
                 }
             }
             else{
@@ -181,11 +202,71 @@ class API{
         }
         return $result;
     }
+    public function updateProduct($id,$name,$description,$packsize,$userId,$image){
+        $result = array();
+        $user = $this->getUserById($userId);
+        if($user === false){
+            $result['code'] = 1;
+            $result['msg'] = "You need  to be logged in to perform this operation";
+        }
+        else{
+            
+            if($image != null){
+                $ext = strtolower(pathinfo(UPLOAD_PATH.basename($image["name"]),PATHINFO_EXTENSION));
+                $filename = $id .".".$ext;
+                $path = UPLOAD_PATH.$filename;
+                // file_put_contents("log.log","path: ".$path);
+                // error_log("path: ".$path,3,"log.log");
+                $sql = "update products set name='".$name."',description='".$description."',pack_size='".$packsize."',image='".$filename."' where id='".$id."')";
+                $query = $this->con->query($sql);
+                if(!$query){
+                    $result['code'] = 1;
+                    $result['msg'] = "Could not update product ";
+                    
+                }
+                else{
+                    $result['code'] = 0;
+                    $result['msg'] =  "Product successfully updated ";
+                    $result['products'] = $this->getProducts($userId)['products']; 
+                    if(is_dir(UPLOAD_PATH)){
+                        if(move_uploaded_file($image['tmp_name'],$path)){
+                            $result['msg'] = "Image successfully uploaded";
+                        }
+                        else{
+                            $result['msg'] =  "Could not upload image";
+                           
+                        }
+                    }
+                    else{
+                        mkdir(UPLOAD_PATH,0777,true);
+                        if(move_uploaded_file($image['tmp_name'],$path)){
+                            $result['msg'] = "Image successfully uploaded";
+                        }
+                        else{
+                            $result['msg'] =  "Could not upload image";
+                           
+                        }
+                    }
+                    
+                }
+            }
+            else{
+                $sql = "update products set name='".$name."',description='".$description."',pack_size='".$packsize."' where id='".$id."'";
+                $query = $this->con->query($sql);
+                if(!$query){
+                    $result['code'] = 1;
+                    $result['msg'] = "Could not update product ";
+                    $result['error'] = $this->con->error;
+                }
+                else{
+                    $result['code'] = 0;
+                    $result['msg'] =  "Product successfully updated ";
+                    $result['products'] = $this->getProducts($userId)['products']; 
+                }
+            }
+            return $result;
+        }
+    }
 }
-
-
-
-
-
 
 ?>

@@ -1,14 +1,27 @@
 <?php
+
+// echo $myvar;
+// echo phpinfo();
+
 ini_set('display_errors',1);
 require_once('api.php');
 
 $api = new API();
-
+//ok
 if(isset($_GET['tag'])){
     if(isset($_POST['btnAddProduct'])){
         $data = $_POST;
         $image = $_FILES["image"];
-       $result = $api->createProduct($data['name'],$data['description'],$data['pack_size'],$data['user_id'],$image);
+        // $result['posts'] = $data;
+        $result = $api->createProduct($data['name'],$data['description'],$data['pack_size'],$data['user_id'],$image);
+        echo json_encode($result);
+    }
+    if(isset($_POST['btnUpdateProduct'])){
+        $data = $_POST;
+        $image = ($_FILES == null) ? null : $_FILES["image"];
+        // $result['posts'] = $data;
+        // $result['files'] = $_FILES;
+        $result = $api->updateProduct($data['id'],$data['name'],$data['description'],$data['pack_size'],$data['user_id'],$image);
         echo json_encode($result);
     }
 }

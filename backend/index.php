@@ -24,12 +24,32 @@ if(isset($_GET['tag'])){
         $result = $api->updateProduct($data['id'],$data['name'],$data['description'],$data['pack_size'],$data['user_id'],$image);
         echo json_encode($result);
     }
+    if(isset($_POST['btnAddRep'])){
+        $data = $_POST;
+        $data['avatar'] = $_FILES['avatar'];
+        $result = $api->createRep($data['fname'],$data['lname'],$data['service_area'],$data['phone'],$data['email'],$data['password'],$data['avatar'],$data['admin']);
+        echo json_encode($result);
+    }
+    if(isset($_POST['btnUpdateRep'])){
+        $data = $_POST;
+        unset($data['btnUpdateRep']);
+        $data['avatar'] = $_FILES['avatar'];
+        $result = $api->updateRep($data);
+        echo json_encode($result);
+    }
+    if(isset($_GET['uid']) && $_GET['tag'] == "products"){
+        $userId = $_GET['uid'];
+        $result = $api->getProducts($userId);
+        echo json_encode($result);
+    }
+    if(isset($_GET['uid']) && $_GET['tag'] == "reps"){
+        $userId = $_GET['uid'];
+        $result = $api->getReps($userId);
+        echo json_encode($result);
+    }
+    
 }
-else if(isset($_GET['uid'])){
-    $userId = $_GET['uid'];
-    $result = $api->getProducts($userId);
-    echo json_encode($result);
-}
+
 else{
     $raw = file_get_contents("php://input");
     // echo $raw;
@@ -70,6 +90,22 @@ else{
         
     }
    
+    //delete product
+    if(isset($content->btnDelete)){
+        $id = $content->id;
+        $user = $content->user_id;
+        $type = $content->type;
+        switch($type){
+            case "product":
+                $delete = $api->deleteProduct($id,$user);
+                break;
+            case "rep":
+                $delete = $api->deleteRep($id,$user);
+                break;
+        }
+       
+        echo json_encode($delete);
+    }
     
 }
 

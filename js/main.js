@@ -417,7 +417,7 @@ const listProducts = (products)=>{
         const image = document.createElement("img");
 
         itemList.classList.add("item-list");
-        image.src = (p.image) ? "data/"+p.image : "/img/no_data.svg";
+        image.src = (p.image) ? "/data/"+p.image : "/img/no_data.svg";
         image.alt = p.description;
         image.classList.add("item-image")
         itemList.appendChild(image);
@@ -475,10 +475,10 @@ const listReps = (reps)=>{
 
         const profile = document.createElement("img");
         itemList.classList.add("item-list");
-        profile.src = rep.profile;
+        profile.src = rep.avatar ? "/data/"+rep.avatar : "/img/reps.svg";
         profile.classList.add("item-image");
         area.textContent = rep.service_area;
-        title.textContent = rep.first_name+" "+rep.last_name;
+        title.textContent = rep.fname+" "+rep.lname;
         title.classList.add("item-title");
         area.classList.add("item-focus");
         itemData.classList.add("item-data");
@@ -633,22 +633,45 @@ const randomId = (strength)=>{
 //confirm delete
 const confirmDelete = (itemType,itemId)=>{
     let message = "Are you sure you want to delete this "+itemType+"?";
-    let return_page = "/dashboard.html";
+    let return_page ="/dashboard.html";
+    var userId = JSON.parse(session.getItem("session")).id;
+    var options = {
+        body:JSON.stringify({type:itemType,user_id:userId,id:itemId,btnDelete:"delete"}),
+        method:"POST",headers:{'Content-type':'application/json'}
+    }
     if(confirm(message)){
         switch(itemType){
             case "product":
-                let products = db.products.filter(p=>{
-                    return p.id !== itemId;
-                });
-                db.products = products;
-                return_page = "/products.html";
+                fetch("/backend/",options)
+                .then(res=>res.json())
+                .then(result=>{
+                    console.log("results:",result);
+                    db.products = result.products;
+                    return_page = "/products.html";
+                    showFeedback(result.code,result.msg);
+                })
+                .catch(e=>{
+                    console.log("results:",e);
+                    showFeedback(1,e);
+                })
+                
                 break;
             case "rep":
-                let reps = db.reps.filter(p=>{
-                    return p.id !== itemId;
-                });
-                db.reps = reps;
-                return_page = "/reps.html";
+                fetch("/backend/",options)
+                .then(res=>res.json())
+                .then(result=>{
+                    console.log("results:",result);
+                    db.reps = result.reps;
+                    return_page = "/reps.html";
+                    storage.setItem("db",JSON.stringify(db));
+                    window.location.pathname = return_page;
+                    showFeedback(result.code,result.msg);
+                })
+                .catch(e=>{
+                    console.log("results:",e);
+                    showFeedback(1,e);
+                })
+                
                 break;
             case "customer":
                 let customers = db.customers.filter(p=>{
@@ -747,15 +770,49 @@ const saveSupplier = (supplier)=>{
 }
 
 //save Rep
-const saveRep = (rep)=>{
-    var reps= db.reps;
-    rep.id = randomId(12);
-    db.users.push({id:rep.id,email:rep.email,password:rep.password});
-    delete rep.password;
-    reps.push(rep);
-    db.reps = reps;
-    storage.setItem('db',JSON.stringify(db));
-    window.location.pathname="/reps.html";
+const saveRep = (rep,option=null)=>{
+    console.log("prods: ",rep);
+    var formData = new FormData();
+    if(option == null){
+        formData.append("fname",rep.fname);
+        formData.append("lname",rep.lname);
+        formData.append("email",rep.email);
+        formData.append("service_area",rep.service_area);
+        formData.append("phone",rep.phone);
+        formData.append("password",rep.password);
+        formData.append("admin",rep.admin);
+        formData.append("avatar",rep.avatar);
+        formData.append("btnAddRep","addRep");
+    }
+    else{
+        Object.keys(rep).forEach((key,i)=>{
+            // if(key == "avatar") formData.append("'"+key+"'",Object.values(rep))
+            formData.append(key,Object.values(rep)[i])
+        })
+        formData.append("btnUpdateRep","updateRep");
+    }
+    console.log("formdata: ",formData);
+    var options = {
+        method:"POST",
+        body:formData,
+        
+    }
+    fetch("/backend/?tag=rep",options)
+    .then(res=>res.json())
+    .then(result=>{
+        console.log("result: ",result);
+        if(result.code == 0){
+            db.reps = result.reps;
+            storage.setItem("db",JSON.stringify(db));
+            window.location.pathname="/reps.html";
+        }
+        else showFeedback(result.code,result.msg);
+        
+    })
+    .catch(err=>{
+        console.log("err: ",err);
+        showFeedback(1,"Something went wrong! Please try again later");
+    })
 }
 //save product
 const saveProduct = (product,tag=null)=>{
@@ -764,7 +821,7 @@ const saveProduct = (product,tag=null)=>{
     formData.append("name",product.name);
     formData.append("description",product.description);
     formData.append("pack_size",product.pack_size);
-    formData.append("user_id",product.user);
+    formData.append("user_id",product.user_id);
     if(product.image) formData.append("image",product.image);
     if(tag == null || tag.toLowerCase() == "add"){
         formData.append("btnAddProduct","addProduct");
@@ -907,18 +964,26 @@ if(window.location.pathname == "/reps.html"){
     let login = checkLogin();
     if(login){
         let reps = db.reps;
-        if(reps.length === 0){
-            simulateLoad(1000,()=>{
-                window.location.pathname = "/add_rep.html";
-            });
+        var userId = JSON.parse(session.getItem("session")).id;
+        fetch("/backend/?tag=reps&uid="+userId,{
+            method:"GET"
+        }).then(res=>res.json())
+        .then(result=>{
+            console.log("result: ",result);
+            db.reps = result.reps;
+            storage.setItem("db",JSON.stringify(db));
+            db = JSON.parse(storage.getItem("db"));
+            if(db.reps.length === 0){
+                simulateLoad(1000,()=>{
+                    window.location.pathname = "/add_rep.html";
+                });
+            }
             
-        }
-        else{
-           
-           simulateLoad(1000,()=>{
-               listReps(reps);
-           });
-        }
+        }).catch(e=>{console.log(e)})
+        .finally(()=>{
+            showHideSpinner(0);
+            listReps(db.reps);
+        })
     }
 }
 
@@ -948,7 +1013,7 @@ if(window.location.pathname == "/products.html"){
     if(login){
         showHideSpinner(1);
         var userId = JSON.parse(session.getItem("session")).id;
-        fetch("/backend/?uid="+userId,{
+        fetch("/backend/?tag=products&uid="+userId,{
             method:"GET"
         }).then(res=>res.json())
         .then(result=>{
@@ -1142,7 +1207,7 @@ if(window.location.pathname == "/issue.html"){
                 
             });
             db.reps.forEach(rep=>{
-                form.rep.options.add(new Option(rep.first_name+" "+rep.last_name,rep.id));
+                form.rep.options.add(new Option(rep.fname+" "+rep.lname,rep.id));
             })
         
         
@@ -1219,15 +1284,15 @@ if(window.location.pathname == "/add_rep.html"){
             let password = document.getElementById("password").value;
             
             let file = document.getElementById("profile_image").files[0];
-
+            let user_id = JSON.parse(session.getItem("session")).id;
             let fileData = null;
-            let rep = {profile:fileData,first_name:fname,last_name:lname,email:email,phone:phone,service_area:service_area,password:password};
+            let rep = {avatar:fileData,fname:fname,lname:lname,email:email,phone:phone,service_area:service_area,password:password,admin:user_id};
             
             if(file){
                 let reader = new FileReader();
                 reader.addEventListener('load',()=>{
                     fileData = reader.result;
-                    rep.profile = fileData;
+                    rep.avatar = file;
                     saveRep(rep);
                 },false);
                 reader.readAsDataURL(file);
@@ -1338,7 +1403,7 @@ if(window.location.pathname == "/product_detail.html"){
                 document.getElementById("name").textContent = product[0].name;
                 document.getElementById("description").textContent = product[0].description;
                 document.getElementById("pack_size").textContent = product[0].pack_size;
-                document.getElementById("preview").src = product[0].image;
+                document.getElementById("preview").src = "/data/"+product[0].image;
                 
         }
     }
@@ -1359,16 +1424,14 @@ if(window.location.pathname == "/rep_detail.html"){
         window.location.pathname = "/not_found.html";
     }
     else{
-                document.getElementById("rep_name").textContent = rep[0].first_name + " "+rep[0].last_name;
-                document.getElementById("fname").textContent = rep[0].first_name;
-                document.getElementById("lname").textContent = rep[0].last_name;
+                document.getElementById("rep_name").textContent = rep[0].fname + " "+rep[0].lname;
+                document.getElementById("fname").textContent = rep[0].fname;
+                document.getElementById("lname").textContent = rep[0].lname;
                 document.getElementById("area").textContent = rep[0].service_area;
                 document.getElementById("phone").textContent = rep[0].phone;
                 document.getElementById("email").textContent = rep[0].email;
                 document.getElementById("report_link").href = "rep_report.html?rid="+rep[0].id;
-                // document.getElementById("edit_link").href = "edit_rep.html?rid="+rep[0].id;
-                // document.getElementById("del_link").href = "edit_rep.html?rid="+rep[0].id;
-                document.getElementById("preview").src = rep[0].profile;
+                document.getElementById("preview").src = "/data/"+rep[0].avatar;
                 
         }
     }
@@ -1470,43 +1533,45 @@ if(window.location.pathname == "/edit_rep.html"){
     else{
         const form = document.querySelector("#edit_rep_form");
         if(form){
-            form.fname.value = rep[0].first_name;
-            form.lname.value = rep[0].last_name;
+            form.fname.value = rep[0].fname;
+            form.lname.value = rep[0].lname;
             form.email.value = rep[0].email;
             form.phone.value = rep[0].phone;
             form.service_area.value = rep[0].service_area;
-            document.querySelector("#preview").src = rep[0].profile;
+            const preview = document.querySelector("#preview");
+            preview.src = rep[0].avatar ? "/data/"+ rep[0].avatar : "/img/reps.svg";
+
+            let fileInput = document.getElementById("profile_image");
+            fileInput.addEventListener("change",(e)=>{
+                if(e.target.files[0] != null){
+                    var url = URL.createObjectURL(e.target.files[0]);
+                    preview.src = url;
+                }
+            })
             form.addEventListener('submit',(event)=>{
                 event.preventDefault();
                 let fname = document.getElementById("fname").value;
                 let lname = document.getElementById("lname").value;
                 let email = document.getElementById("email").value;
                 let phone = document.getElementById("phone").value;
+                let password = document.getElementById("password").value;
                 let service_area = document.getElementById("service_area").value;
-                let file = document.getElementById("profile_image").files[0];
-                
-                let fileData = rep[0].profile;
-                let rp = rep[0];
-
-                if(rp.first_name.toLowerCase() != fname.toLowerCase()) rp.first_name = fname;
-                if(rp.last_name.toLowerCase() != lname.toLowerCase()) rp.last_name = lname;
-                if(rp.email.toLowerCase() != email.toLowerCase()) rp.email = email;
-                if(rp.phone != phone) rp.phone = phone;
-                if(rp.service_area.toLowerCase() != service_area.toLowerCase()) rp.service_area = service_area;
+                let file = fileInput.files[0];
+    
+                let rp = {id:rep[0].id};
+                rp.email = rep[0].email;
+                rp.admin = JSON.parse(session.getItem("session")).id;
+                if(file != null) rp.avatar = file;
+                if(rep[0].fname.toLowerCase() != fname.toLowerCase()) rp.fname = fname;
+                if(rep[0].lname.toLowerCase() != lname.toLowerCase()) rp.lname = lname;
+                if(rep[0].email.toLowerCase() != email.toLowerCase()) rp.email = email;
+                if(rep[0].phone != phone) rp.phone = phone;
+                if(rep[0].service_area.toLowerCase() != service_area.toLowerCase()) rp.service_area = service_area;
+                if(password) rp.password = password;
                 console.log("prod: ",rp);
-                if(file){
-                    let reader = new FileReader();
-                    reader.addEventListener('load',()=>{
-                        fileData = reader.result;
-                        rp.profile = fileData;
-                       updateRep(rp);
-                    },false);
-                    reader.readAsDataURL(file);
-                }
-                else{
-                    console.log("no file");
-                    updateRep(rp);
-                }
+                
+                saveRep(rp,"edit");
+               
                
             })
         }

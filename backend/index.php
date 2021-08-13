@@ -37,6 +37,17 @@ if(isset($_GET['tag'])){
         $result = $api->updateRep($data);
         echo json_encode($result);
     }
+    if(isset($_POST['btnAddSupplier'])){
+        $data = $_POST;
+        $result = $api->createSupplier($data['name'],$data['country'],$data['contact'],$data['phone'],$data['email'],$data['address'],$data['admin']);
+        echo json_encode($result);
+    }
+    if(isset($_POST['btnUpdateSupplier'])){
+        $data = $_POST;
+        unset($data['btnUpdateSupplier']);
+        $result = $api->updateSupplier($data);
+        echo json_encode($result);
+    }
     if(isset($_GET['uid']) && $_GET['tag'] == "products"){
         $userId = $_GET['uid'];
         $result = $api->getProducts($userId);
@@ -45,6 +56,11 @@ if(isset($_GET['tag'])){
     if(isset($_GET['uid']) && $_GET['tag'] == "reps"){
         $userId = $_GET['uid'];
         $result = $api->getReps($userId);
+        echo json_encode($result);
+    }
+    if(isset($_GET['uid']) && $_GET['tag'] == "suppliers"){
+        $userId = $_GET['uid'];
+        $result = $api->getSuppliers($userId);
         echo json_encode($result);
     }
     
@@ -90,7 +106,7 @@ else{
         
     }
    
-    //delete product
+    //delete items
     if(isset($content->btnDelete)){
         $id = $content->id;
         $user = $content->user_id;
@@ -101,6 +117,9 @@ else{
                 break;
             case "rep":
                 $delete = $api->deleteRep($id,$user);
+                break;
+            case "supplier":
+                $delete = $api->deleteSupplier($id,$user);
                 break;
         }
        

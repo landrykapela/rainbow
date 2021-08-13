@@ -491,6 +491,146 @@ class API{
         // echo json_encode($result);
         return $result;
     }
+    public function getSuppliers($userId){
+        $result = array();
+        $user = $this->getUserById($userId);
+        if(!$user){
+            $result['code'] = 1;
+            $result['msg'] = "Could not find user";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            $query = $this->con->query("select * from suppliers where admin='".$userId."'");
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not get suppliers";
+                $result['error'] = $this->con->error;
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "Successful";
+                $suppliers = array();
+                while($r=$query->fetch_assoc()){
+                    $suppliers[] = $r;
+                }
+                $result['suppliers'] = $suppliers;
+            }
+        }
+        return $result;
+    }
+    public function createSupplier($name,$country,$contact,$phone,$email,$address,$admin){
+        $result = array();
+        $check = $this->getUserById($admin);
+        if(!$check){
+            $result['code'] = 1;
+            $result['msg'] = "You need to be logged in as admin";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            $id = $this->generateId(ID_LENGTH);
+            $sql = "insert into suppliers (id,name,country,email,phone,admin,contact_person,address) values('".$id."','".$name."','".$country."','".$email."','".$phone."','".$admin."','".$contact."','".$address."')";
+            $query = $this->con->query($sql);
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not create supplier";
+                $result['error'] = $this->con->error;
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "Successful";
+                $result['suppliers'] = $this->getSuppliers($admin);
+                
+            }
+        }
+        return $result;
+    }
+    public function updateSupplier($data){
+        $result = array();
+        $check = $this->getUserById($data['admin']);
+        if(!$check){
+            $result['code'] = 1;
+            $result['msg'] = "You need to be logged in as admin";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            $id = $data['id'];
+            $admin = $data['admin'];
+            unset($data['id']);
+            unset($data['admin']);
+            $sql = "update suppliers set ";
+            for($i=0;$i < sizeof(array_keys($data));$i++){
+                $sql .= array_keys($data)[$i] . "='".array_values($data)[$i]."'";
+                if($i < sizeof(array_keys($data)) -1) $sql .= ", ";
+            }
+            $sql .= " where id='".$id."' and admin='".$admin."'";
+            $query = $this->con->query($sql);
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not update supplier";
+                $result['error'] = $this->con->error;
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "Successful";
+                $result['suppliers'] = $this->getSuppliers($admin);
+                
+            }
+        }
+        return $result;
+    }
+    public function getSupplierById($sid){
+        $result = array();
+        $query = $this->con->query("select * from suppliers where id='".$sid."'");
+        if(!$query){
+            $result['code'] = 1;
+            $result['msg'] = "Could not get supplier";
+            $result['error'] = $this->con->error;
+            $result['supplier'] = null;
+        }
+        else{
+            $result['code'] = 0;
+            $result['msg'] = "Successful";
+            $supplier = $query->fetch_assoc();
+            $result['supplier'] = $supplier;
+        }
+        return $result;
+    }
+    public function deleteSupplier($sid,$userId){
+        $this->con->autocommit(false);
+        $result = array();
+        $supplier = $this->getSupplierById($sid);
+        if($supplier['supplier'] == null){
+            $result['code'] = 1;
+            $result['msg'] = "Invalid supplier";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            $sql = "delete from suppliers where id='".$sid."' and admin='".$userId."'";
+            $query = $this->con->query($sql);
+            if(!$query){
+                $this->con->rollback();
+                $result['code'] = 1;
+                $result['msg'] = "Could not delete supplier";
+                $result['error'] = $this->con->error;
+            }
+            else{
+                if($this->con->commit()){
+                    $result['code'] = 0;
+                    $result['msg'] = "Successful ";
+                    $result['suppliers'] = $this->getSuppliers($userId)['suppliers'];
+                }
+                else{
+                    $result['code'] = 1;
+                    $result['msg'] = "Could not save changes";
+                    $result['suppliers'] = $this->getSuppliers($userId)['suppliers'];
+                }
+                
+            }
+        }
+        $this->con->close();
+        // echo json_encode($result);
+        return $result;
+    }
 }
 
 ?>

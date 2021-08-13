@@ -664,7 +664,7 @@ const confirmDelete = (itemType,itemId)=>{
                     db.reps = result.reps;
                     return_page = "/reps.html";
                     storage.setItem("db",JSON.stringify(db));
-                    window.location.pathname = return_page;
+                    // window.location.pathname = return_page;
                     showFeedback(result.code,result.msg);
                 })
                 .catch(e=>{
@@ -688,14 +688,23 @@ const confirmDelete = (itemType,itemId)=>{
                 return_page = "/users.html";
                 break;    
             case "supplier":
-                let suppliers = db.suppliers.filter(p=>{
-                    return p.id !== itemId;
-                });
-                db.suppliers = suppliers;
-                return_page = "/suppliers.html";
+                fetch("/backend/",options)
+                .then(res=>res.json())
+                .then(result=>{
+                    console.log("results:",result);
+                    db.suppliers = result.suppliers;
+                    return_page = "/suppliers.html";
+                    storage.setItem("db",JSON.stringify(db));
+                    showFeedback(result.code,result.msg);
+                })
+                .catch(e=>{
+                    console.log("results:",e);
+                    showFeedback(1,e);
+                })
+                
                 break;  
         }
-        storage.setItem("db",JSON.stringify(db));
+        // storage.setItem("db",JSON.stringify(db));
         window.location.pathname = return_page;
 
     }
@@ -760,13 +769,48 @@ const updateRep = (rep)=>{
 }
 
 //save Supplier
-const saveSupplier = (supplier)=>{
-    var suppliers = db.suppliers;
-    supplier.id = randomId(12);
-    suppliers.push(supplier);
-    db.suppliers = suppliers;
-    storage.setItem('db',JSON.stringify(db));
-    window.location.pathname="/suppliers.html";
+const saveSupplier = (supplier,option=null)=>{
+   
+    var formData = new FormData();
+    if(option == null){
+        formData.append("name",supplier.name);
+        formData.append("country",supplier.country);
+        formData.append("phone",supplier.phone);
+        formData.append("email",supplier.email);
+        formData.append("address",supplier.address);
+        formData.append("contact",supplier.contact);
+        formData.append("admin",supplier.admin);
+        formData.append("btnAddSupplier","addSupplier");
+    }
+    else{
+        Object.keys(supplier).forEach((key,i)=>{
+            formData.append(key,Object.values(supplier)[i]);
+        });
+        formData.append("id",supplier.id);
+        formData.append("btnUpdateSupplier","updateSupplier");
+    }
+    
+    var options = {
+        method:"POST",
+        body:formData,
+        
+    }
+    fetch("/backend/?tag=supplier",options)
+    .then(res=>res.json())
+    .then(result=>{
+        console.log("result: ",result);
+        if(result.code == 0){
+            db.suppliers = result.suppliers;
+            storage.setItem("db",JSON.stringify(db));
+            window.location.pathname="/suppliers.html";
+        }
+        else showFeedback(result.code,result.msg);
+        
+    })
+    .catch(err=>{
+        console.log("err: ",err);
+        showFeedback(1,"Something went wrong! Please try again later");
+    })
 }
 
 //save Rep
@@ -828,6 +872,7 @@ const saveProduct = (product,tag=null)=>{
     }
     else{
         formData.append("id",product.id);
+        formData.append("user_id",product.user_id);
         formData.append("btnUpdateProduct","updateProduct");
     }
     // console.log("formdata: ",JSON.stringify(formData));
@@ -963,7 +1008,6 @@ if(window.location.pathname == "/dashboard.html"){
 if(window.location.pathname == "/reps.html"){
     let login = checkLogin();
     if(login){
-        let reps = db.reps;
         var userId = JSON.parse(session.getItem("session")).id;
         fetch("/backend/?tag=reps&uid="+userId,{
             method:"GET"
@@ -991,19 +1035,26 @@ if(window.location.pathname == "/reps.html"){
 if(window.location.pathname == "/suppliers.html"){
     let login = checkLogin();
     if(login){
-        let suppliers = db.suppliers;
-        if(suppliers.length === 0){
-            simulateLoad(1000,()=>{
-                window.location.pathname = "/add_supplier.html";
-            });
+        var userId = JSON.parse(session.getItem("session")).id;
+        fetch("/backend/?tag=suppliers&uid="+userId,{
+            method:"GET"
+        }).then(res=>res.json())
+        .then(result=>{
+            console.log("result: ",result);
+            db.suppliers = result.suppliers;
+            storage.setItem("db",JSON.stringify(db));
+            db = JSON.parse(storage.getItem("db"));
+            if(db.suppliers.length === 0){
+                simulateLoad(1000,()=>{
+                    window.location.pathname = "/add_supplier.html";
+                });
+            }
             
-        }
-        else{
-           
-           simulateLoad(1000,()=>{
-               listSuppliers(suppliers);
-           });
-        }
+        }).catch(e=>{console.log(e)})
+        .finally(()=>{
+            showHideSpinner(0);
+            listSuppliers(db.suppliers);
+        })
     }
 }
 
@@ -1255,8 +1306,8 @@ if(window.location.pathname == "/add_supplier.html"){
             let email = document.getElementById("email").value;
             let address = document.getElementById("address").value;
             
-         
-            let sup = {name:name,country:country,email:email,phone:phone,address:address,contact:contact_person};
+            let admin = JSON.parse(session.getItem("session")).id;
+            let sup = {name:name,country:country,email:email,phone:phone,address:address,contact:contact_person,admin:admin};
             
            saveSupplier(sup);
 
@@ -1372,6 +1423,8 @@ if(window.location.pathname == "/edit_product.html"){
                 if(prod.name.toLowerCase() != name.toLowerCase()) prod.name = name;
                 if(prod.description.toLowerCase() != description.toLowerCase()) prod.description = description;
                 if(prod.pack_size != pack_size) prod.pack_size = pack_size;
+                let user_id = JSON.parse(session.getItem("session")).id;
+                prod.user_id = user_id;
                 console.log("prod: ",prod);
                 if(file){
                     prod.image = file;
@@ -1480,7 +1533,7 @@ if(window.location.pathname == "/edit_supplier.html"){
         const form = document.querySelector("#edit_supplier_form");
         if(form){
             form.name.value = supplier[0].name;
-            form.contact.value = supplier[0].contact;
+            form.contact.value = supplier[0].contact_person;
             form.email.value = supplier[0].email;
             form.phone.value = supplier[0].phone;
             form.address.value = supplier[0].address;
@@ -1495,7 +1548,7 @@ if(window.location.pathname == "/edit_supplier.html"){
                 event.preventDefault();
                 let name = document.getElementById("name").value;
                 let contact = document.getElementById("contact").value;
-                let country = countrySelect.value;
+                let country = countrySelect.options[countrySelect.options.selectedIndex].value;
                 let email = document.getElementById("email").value;
                 let phone = document.getElementById("phone").value;
                 let address = document.getElementById("address").value;
@@ -1503,13 +1556,13 @@ if(window.location.pathname == "/edit_supplier.html"){
                 let sp = supplier[0];
 
                 if(sp.name.toLowerCase() != name.toLowerCase()) sp.name = name;
-                if(sp.contact.toLowerCase() != contact.toLowerCase()) sp.contact = contact;
+                if(sp.contact_person.toLowerCase() != contact.toLowerCase()) sp.contact_person = contact;
                 if(sp.country.toLowerCase() != country.toLowerCase()) sp.country = country;
                 if(sp.email.toLowerCase() != email.toLowerCase()) sp.email = email;
                 if(sp.phone != phone) sp.phone = phone;
                 if(sp.address.toLowerCase() != address.toLowerCase())sp.address = address;
                 
-                    updateSupplier(sp);
+                saveSupplier(sp,"edit");
               
                
             })

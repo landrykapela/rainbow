@@ -265,7 +265,7 @@ const DATA_COUNT = 12;
 const NUMBER_CFG = {count: DATA_COUNT, min: 0, max: 100};
 let db = storage.getItem("db");
 if(db === undefined || db === null){
-    let data = {suppliers:[],products:[],users:[],transactions:[],inventory:[],customers:[],reps:[]};
+    let data = {issues:[],suppliers:[],products:[],users:[],transactions:[],inventory:[],customers:[],reps:[]};
     storage.setItem("db",JSON.stringify(data));
     db = storage.getItem("db");
 }
@@ -391,7 +391,6 @@ const checkLogin = ()=>{
         return true;
     }
 }
-
 
 //show toast
 const showToastMessage = (message)=>{
@@ -586,10 +585,10 @@ const showInventorySummary = ()=>{
         summaryContainer.appendChild(p);
     }
     else{
-        if(db.transactions.length > 0){
+        if(db.issues.length > 0){
             inventories = db.inventory.map(inv=>{
                 let invNew = inv;
-                db.transactions.forEach(tx=>{
+                db.issues.forEach(tx=>{
                     if(tx.invoice_no === inv.invoice_no && inv.product.id == tx.product.id){
                         invNew.quantity -= tx.quantity;
                     }
@@ -714,23 +713,87 @@ const confirmDelete = (itemType,itemId)=>{
 }
 
 //save transaction
-const saveTransaction=(transaction)=>{
-    transaction.id = randomId(12);
-    let transactions = db.transactions;
-    transactions.push(transaction);
-    db.transactions = transactions;
-    storage.setItem("db",JSON.stringify(db));
-    window.location.pathname = "/inventory.html";
+const saveIssue=(issue)=>{
+    var formData = new FormData();
+    formData.append("product",issue.product);
+    formData.append("rep",issue.rep);
+    formData.append("invoice_no",issue.invoice_no);
+    formData.append("quantity",issue.quantity);
+    formData.append("amount",issue.amount);
+    formData.append("admin",issue.admin);
+    formData.append("btnIssueInventory","IssueInventory");
+   
+    
+    var options = {
+        method:"POST",
+        body:formData,
+        
+    }
+    fetch("/backend/?tag=issues",options)
+    .then(res=>res.json())
+    .then(result=>{
+        console.log("result: ",result);
+        if(result.code == 0){
+            db.issues = result.issues;
+            storage.setItem("db",JSON.stringify(db));
+            window.location.pathname="/inventory.html";
+        }
+        else showFeedback(result.code,result.msg);
+        
+    })
+    .catch(err=>{
+        console.log("err: ",err);
+        showFeedback(1,"Something went wrong! Please try again later");
+    })
 }
 
 //save inventory
-const saveInventory = (inv)=>{
-    inv.id = randomId(12);
-    let inventory = db.inventory;
-    inventory.push(inv);
-    db.inventory = inventory;
-    storage.setItem("db",JSON.stringify(db));
-    window.location.pathname = "/inventory.html";
+const saveInventory = (inv,option=null)=>{
+    
+    var formData = new FormData();
+    if(option == null){
+        formData.append("product",inv.product);
+        formData.append("supplier",inv.supplier);
+        formData.append("invoice_no",inv.invoice_no);
+        formData.append("invoice",inv.invoice);
+        formData.append("cif",inv.cif);
+        formData.append("clearing",inv.clearing);
+        formData.append("tpri",inv.tpri);
+        formData.append("quantity",inv.quantity);
+        formData.append("selling_price",inv.selling_price);
+        formData.append("buying_price",inv.buying_price);
+        formData.append("admin",inv.admin);
+        formData.append("btnReceiveInventory","ReceiveInventory");
+    }
+    else{
+        Object.keys(supplier).forEach((key,i)=>{
+            formData.append(key,Object.values(inv)[i]);
+        });
+        formData.append("id",inv.id);
+        formData.append("btnUpdateInventory","updateInventory");
+    }
+    
+    var options = {
+        method:"POST",
+        body:formData,
+        
+    }
+    fetch("/backend/?tag=inventory",options)
+    .then(res=>res.json())
+    .then(result=>{
+        console.log("result: ",result);
+        if(result.code == 0){
+            db.inventory = result.inventory;
+            storage.setItem("db",JSON.stringify(db));
+            window.location.pathname="/inventory.html";
+        }
+        else showFeedback(result.code,result.msg);
+        
+    })
+    .catch(err=>{
+        console.log("err: ",err);
+        showFeedback(1,"Something went wrong! Please try again later");
+    })
 }
 //update supplier
 const updateSupplier = (supplier)=>{
@@ -1000,7 +1063,47 @@ if(signupForm){
 //check if dashboard is loaded
 if(window.location.pathname == "/dashboard.html"){
   var login = checkLogin();
-//   if(login) generateChart();
+  if(login){
+    var userId = JSON.parse(session.getItem("session")).id;
+    fetch("/backend/?tag=products&uid="+userId,{
+        method:"GET"
+    }).then(res=>res.json())
+    .then(result=>{
+        let products = result.products;
+        console.log("result: ",result);
+        db.products = products;
+        storage.setItem("db",JSON.stringify(db));
+        db = JSON.parse(storage.getItem("db"));
+       
+        
+    }).catch(e=>{console.log(e)});
+    
+    fetch("/backend/?tag=reps&uid="+userId,{
+        method:"GET"
+    }).then(res=>res.json())
+    .then(result=>{
+        db.reps = result.reps;
+        storage.setItem("db",JSON.stringify(db));
+        db = JSON.parse(storage.getItem("db"));
+        
+    }).catch(e=>{console.log(e)})
+    
+    fetch("/backend/?tag=suppliers&uid="+userId,{
+        method:"GET"
+    }).then(res=>res.json())
+    .then(result=>{
+        console.log("result: ",result);
+        db.suppliers = result.suppliers;
+        storage.setItem("db",JSON.stringify(db));
+        db = JSON.parse(storage.getItem("db"));
+        if(db.suppliers.length === 0){
+            simulateLoad(1000,()=>{
+                window.location.pathname = "/add_supplier.html";
+            });
+        }
+        
+    }).catch(e=>{console.log(e)})
+  }
 }
 
 
@@ -1092,7 +1195,24 @@ if(window.location.pathname == "/products.html"){
 if(window.location.pathname == "/inventory.html"){
     let login = checkLogin();
     if(login){
-    showInventorySummary();
+        // showHideSpinner(1);
+        var userId = JSON.parse(session.getItem("session")).id;
+        fetch("/backend/?tag=inventory&uid="+userId,{
+            method:"GET"
+        }).then(res=>res.json())
+        .then(result=>{
+            console.log("result: ",result);
+            db.inventory = result.inventory;
+            storage.setItem("db",JSON.stringify(db));
+            db = JSON.parse(storage.getItem("db"));
+            
+            
+        }).catch(e=>{console.log(e)})
+        .finally(()=>{
+            // showHideSpinner(0);
+            showInventorySummary()
+        })
+        
     }
     
 }
@@ -1176,18 +1296,13 @@ if(window.location.pathname == "/receive.html"){
                 let clearing = parseFloat(form.clearing.value);
                 let b_price = parseFloat(form.buying_price.value);
                 let s_price =parseFloat(form.selling_price.value);
-                let file = form.invoice_file.files[0];
-                let invoice_file = null;
-                let inventory = {product:product[0],supplier:supplier[0],invoice_no:invoice_no,quantity:quantity,cif:cif,tpri:tpri,clearing:clearing,buying_price:b_price,selling_price:s_price,invoice:invoice_file};
-
-                if(file){
-                    var reader = new FileReader();
-                    reader.addEventListener('load',()=>{
-                        invoice_file = reader.result;
-                        inventory.invoice = invoice_file;
-                        saveInventory(inventory);
-                    },false);
-                    reader.readAsDataURL(file)
+                let invoice_file =form.invoice_file.files[0];
+                let inventory = {product:productId,supplier:supplierId,invoice_no:invoice_no,quantity:quantity,cif:cif,tpri:tpri,clearing:clearing,buying_price:b_price,selling_price:s_price,invoice:invoice_file};
+                var userId = JSON.parse(session.getItem("session")).id;
+                inventory.admin = userId;
+                if(invoice_file){
+                    inventory.invoice = invoice_file;
+                    saveInventory(inventory);
                 }
                 else{
                     saveInventory(inventory);
@@ -1264,8 +1379,9 @@ if(window.location.pathname == "/issue.html"){
         
         form.addEventListener('submit',(e)=>{
             e.preventDefault();
-            let productId = form.product[form.product.options.selectedIndex].value;
-            let repId = form.rep[form.rep.options.selectedIndex].value;
+            let productId = form.product.options[form.product.options.selectedIndex].value;
+            let repId = form.rep.options[form.rep.options.selectedIndex].value;
+            let repName = form.rep.options[form.rep.options.selectedIndex].text;
             let product = db.products.filter(p=>{
                 return p.id === productId;
             });
@@ -1278,8 +1394,10 @@ if(window.location.pathname == "/issue.html"){
                 return inv.invoice_no == invoice_no && inv.product.id == productId;
             });
             let amount = inv[0].selling_price * quantity;
-            let transaction = {rep:repId,rep_name:rep[0].first_name+" "+rep[0].last_name,product:product[0],invoice_no:invoice_no,quantity:quantity,amount:amount};
-            saveTransaction(transaction);
+            let issue = {rep:repId,rep_name:repName,product:productId,invoice_no:invoice_no,quantity:quantity,amount:amount};
+            let userId = JSON.parse(session.getItem("session")).id;
+            issue.admin = userId;
+            saveIssue(issue);
         })
     }
 }

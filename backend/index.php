@@ -48,6 +48,18 @@ if(isset($_GET['tag'])){
         $result = $api->updateSupplier($data);
         echo json_encode($result);
     }
+    if(isset($_POST['btnReceiveInventory'])){
+        $data = $_POST;
+        $data['invoice'] = $_FILES['invoice'];
+        $result = $api->receiveInventory($data['product'],$data['supplier'],$data['invoice_no'],$data['invoice'],$data['cif'],$data['clearing'],$data['tpri'],$data['quantity'],$data['selling_price'],$data['buying_price'],$data['admin']);
+        echo json_encode($result);
+    }
+    if(isset($_POST['btnIssueInventory'])){
+        $data = $_POST;
+        $result = $api->issueInventory($data['product'],$data['rep'],$data['invoice_no'],$data['amount'],$data['quantity'],$data['admin']);
+        echo json_encode($result);
+    }
+    
     if(isset($_GET['uid']) && $_GET['tag'] == "products"){
         $userId = $_GET['uid'];
         $result = $api->getProducts($userId);
@@ -63,7 +75,11 @@ if(isset($_GET['tag'])){
         $result = $api->getSuppliers($userId);
         echo json_encode($result);
     }
-    
+    if(isset($_GET['uid']) && $_GET['tag'] == "inventory"){
+        $userId = $_GET['uid'];
+        $result = $api->getInventory($userId);
+        echo json_encode($result);
+    }
 }
 
 else{

@@ -147,6 +147,23 @@ class API{
         }
         return $result;
     }
+    public function getProduct($productId){
+        $result = array();
+        $sql = "select * from products where id='".$productId."' order by name asc limit 1";
+        $query = $this->con->query($sql);
+        if(!$query){
+            $result['code'] = 1;
+            $result['msg'] = "Could not get product detail";
+            $result['product'] = null;
+        }
+        else{
+            $result['code'] = 0;
+            $result['msg'] =  "Successful ";
+            $result['product'] = $query->fetch_assoc();
+        }
+        
+        return $result;
+    }
     public function createProduct($name,$description,$packsize,$userId,$image){
         
         $result = array();
@@ -629,6 +646,121 @@ class API{
         }
         $this->con->close();
         // echo json_encode($result);
+        return $result;
+    }
+    public function receiveInventory($product,$supplier,$invoice_no,$invoice,$cif,$clearing,$tpri,$quantity,$selling_price,$buying_price,$admin){
+        $sql = "insert into inventory (product,supplier,invoice_no,cif,clearing,tpri,quantity,selling_price,buying_price,admin) values('".$product."','".$supplier."','".$invoice_no."','".$cif."','".$clearing."','".$tpri."',".$quantity.",'".$selling_price."','".$buying_price."','".$admin."')";
+        $user = $this->getUserById($admin);
+        if(!$user){
+            $result['code'] = 1;
+            $result['msg'] = "Could not find user";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            $query = $this->con->query($sql);
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not create inventory record";
+                $result['error']= $this->con->error;
+            }
+            else{
+                $msg = "Successful";
+                if($invoice != null){
+                    $ext = strtolower(pathinfo(UPLOAD_PATH.basename($invoice["name"]),PATHINFO_EXTENSION));
+                    $filename = $invoice_no.".".$ext;
+                    if($this->saveImage($invoice,$filename)){
+                        $sql = "update inventory set invoice='".$filename."' where invoice_no='".$invoice_no."'";
+                        if($this->con->query($sql)) $msg = "Invoice file successfully saved!";
+                    }
+                    else $msg = "Invoice file could not be saved";
+
+                }
+                $result['code'] = 0;
+                $result['msg'] = $msg;
+                $result['inventory'] = $this->getInventory($admin)['inventory'];
+            }
+        }
+        return $result;
+    }
+    public function issueInventory($product,$rep,$invoice_no,$amount,$quantity,$admin){
+        $sql = "insert into issues (product,rep,invoice_no,amount,quantity,admin) values('".$product."','".$rep."','".$invoice_no."','".$amount."',".$quantity.",'".$admin."')";
+        $user = $this->getUserById($admin);
+        if(!$user){
+            $result['code'] = 1;
+            $result['msg'] = "Could not find user";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            $query = $this->con->query($sql);
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not issue inventory";
+                $result['error']= $this->con->error;
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "Successful";
+                $result['issues'] = $this->getIssues($admin)['issues'];
+            }
+        }
+        return $result;
+    }
+    public function getInventory($userId){
+        $result = array();
+        $user = $this->getUserById($userId);
+        if(!$user){
+            $result['code'] = 1;
+            $result['msg'] = "Could not find user";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            $query = $this->con->query("select * from inventory where admin='".$userId."'");
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not get inventory";
+                $result['error'] = $this->con->error;
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "Successful";
+                $inventory = array();
+                while($r=$query->fetch_assoc()){
+                    if($r['product']) $r['product'] = $this->getProduct($r['product'])['product'];
+                    if($r['supplier']) $r['supplier'] = $this->getSupplierById($r['supplier'])['supplier'];
+                    $inventory[] = $r;
+                }
+                $result['inventory'] = $inventory;
+            }
+        }
+        return $result;
+    }
+    public function getIssues($userId){
+        $result = array();
+        $user = $this->getUserById($userId);
+        if(!$user){
+            $result['code'] = 1;
+            $result['msg'] = "Could not find user";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            $query = $this->con->query("select * from issues where admin='".$userId."'");
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not get inventory";
+                $result['error'] = $this->con->error;
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "Successful";
+                $issues = array();
+                while($r=$query->fetch_assoc()){
+                    if($r['product']) $r['product'] = $this->getProduct($r['product'])['product'];
+                    if($r['rep']) $r['rep'] = $this->getRepById($r['rep'])['rep'];
+                    $issues[] = $r;
+                }
+                $result['issues'] = $issues;
+            }
+        }
         return $result;
     }
 }

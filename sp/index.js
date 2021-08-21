@@ -6,8 +6,9 @@ const signout = ()=>{
     if(confirm("Are you sure you want to sign out?")){
         window.localStorage.clear();
         session.clear();
-        URLSearchParams.keys().forEach(key=>URLSearchParams.delete(key));
-        // window.location.href = "/";
+        
+        new URLSearchParams().keys().forEach(key=>URLSearchParams.delete(key));
+        window.location.href = "/";
     }
     
 }
@@ -266,15 +267,12 @@ const DATA_COUNT = 12;
 const NUMBER_CFG = {count: DATA_COUNT, min: 0, max: 100};
 let db = storage.getItem("db");
 if(db === undefined || db === null){
-    let data = {issues:[],suppliers:[],products:[],users:[],transactions:[],inventory:[],customers:[],reps:[]};
+    let data = {products:[],users:[],transactions:[],customers:[],reps:[]};
     storage.setItem("db",JSON.stringify(data));
     db = storage.getItem("db");
 }
 db = JSON.parse(db);
-if(db.suppliers === undefined){
-    db.suppliers = [];
-    storage.setItem("db",JSON.stringify(db));
-}
+
 if(db.products === undefined){
     db.products = [];
     storage.setItem("db",JSON.stringify(db));
@@ -285,11 +283,7 @@ if(db.customers === undefined){
     storage.setItem("db",JSON.stringify(db));
     db = JSON.parse(storage.getItem("db"));
 }
-if(db.inventory === undefined){
-    db.inventory = [];
-    storage.setItem("db",JSON.stringify(db));
-    db = JSON.parse(storage.getItem("db"));
-}
+
 if(db.users === undefined){
     db.users = [];
     storage.setItem("db",JSON.stringify(db));
@@ -402,178 +396,6 @@ const showToastMessage = (message)=>{
     // msgContainer.classList.add("slideUp");
 }
 
-//load product list
-const listProducts = (products)=>{
-    // console.log("p: ",products);
-    const listContainer = document.querySelector("#list_container");
-    products.forEach(p=>{
-        const itemList = document.createElement("div");
-        const itemData = document.createElement("div");
-        const itemActions = document.createElement("div");
-        const title = document.createElement("span");
-        const area = document.createElement("span");
-        const actionEdit = document.createElement("span");
-        const actionDelete = document.createElement("span");
-        const image = document.createElement("img");
-
-        itemList.classList.add("item-list");
-        image.src = (p.image) ? "/data/"+p.image : "/img/no_data.svg";
-        image.alt = p.description;
-        image.classList.add("item-image")
-        itemList.appendChild(image);
-        area.textContent = p.pack_size;
-        title.textContent = p.name;
-        title.classList.add("item-title");
-        area.classList.add("item-focus");
-        itemData.classList.add("item-data");
-        itemData.appendChild(title);
-        itemData.appendChild(area);
-
-        itemList.appendChild(itemData);
-        itemActions.classList.add("action-buttons");
-        actionEdit.classList.add("material-icons");
-        actionEdit.textContent ="edit";
-        actionDelete.classList.add("material-icons");
-        actionDelete.textContent ="delete";
-
-        itemActions.appendChild(actionEdit);
-        itemActions.appendChild(actionDelete);
-        itemList.appendChild(itemActions);
-
-        listContainer.appendChild(itemList);
-
-        actionDelete.addEventListener('click',(e)=>{
-            confirmDelete("product",p.id);
-        });
-
-        //edit product
-        actionEdit.addEventListener('click',(e)=>{
-            e.preventDefault();
-            let target = window.location.protocol+"//"+window.location.host+"/edit_product.html?pid="+p.id;
-            window.location.href = target;
-        })
-
-        //item click
-        title.addEventListener('click',(e)=>{
-            let target = window.location.protocol+"//"+window.location.host+"/product_detail.html?pid="+p.id;
-            window.location.href = target;
-        })
-    })
-}
-
-//load reps listReps
-const listReps = (reps)=>{
-    const listContainer = document.querySelector("#list_container");
-    reps.forEach(rep=>{
-        const itemList = document.createElement("div");
-        const itemData = document.createElement("div");
-        const itemActions = document.createElement("div");
-        const title = document.createElement("span");
-        const area = document.createElement("span");
-        const actionEdit = document.createElement("span");
-        const actionDelete = document.createElement("span");
-
-        const profile = document.createElement("img");
-        itemList.classList.add("item-list");
-        profile.src = rep.avatar ? "/data/"+rep.avatar : "/img/reps.svg";
-        profile.classList.add("item-image");
-        area.textContent = rep.service_area;
-        title.textContent = rep.fname+" "+rep.lname;
-        title.classList.add("item-title");
-        area.classList.add("item-focus");
-        itemData.classList.add("item-data");
-        itemData.appendChild(title);
-        itemData.appendChild(area);
-        itemList.appendChild(profile);
-        itemList.appendChild(itemData);
-        itemActions.classList.add("action-buttons");
-        actionEdit.classList.add("material-icons");
-        actionEdit.textContent ="edit";
-        actionDelete.classList.add("material-icons");
-        actionDelete.textContent ="delete";
-
-        itemActions.appendChild(actionEdit);
-        itemActions.appendChild(actionDelete);
-        itemList.appendChild(itemActions);
-
-        listContainer.appendChild(itemList);
-
-       
-        actionDelete.addEventListener('click',(e)=>{
-            confirmDelete("rep",rep.id);
-        });
-
-        //edit product
-        actionEdit.addEventListener('click',(e)=>{
-            let target = window.location.protocol+"//"+window.location.host+"/edit_rep.html?rid="+rep.id;
-            window.location.href = target;
-        });
-
-         //item click
-         itemData.addEventListener('click',(e)=>{
-             e.preventDefault();
-            let target = window.location.protocol+"//"+window.location.host+"/rep_detail.html?rid="+rep.id;
-            window.location.href = target;
-        });
-
-
-    })
-}
-
-//load suppliers
-const listSuppliers = (suppliers)=>{
-    const listContainer = document.querySelector("#list_container");
-    suppliers.forEach(supplier=>{
-        const itemList = document.createElement("div");
-        itemList.classList.add("item-list");
-        const itemData = document.createElement("div");
-        const itemActions = document.createElement("div");
-        const title = document.createElement("span");
-        const area = document.createElement("span");
-        const actionEdit = document.createElement("span");
-        const actionDelete = document.createElement("span");
-
-        area.textContent = supplier.address+", "+supplier.country;
-        title.textContent = supplier.name;
-        title.classList.add("item-title");
-        area.classList.add("item-focus");
-        itemData.classList.add("item-data");
-        itemData.appendChild(title);
-        itemData.appendChild(area);
-        itemList.appendChild(itemData);
-        itemActions.classList.add("action-buttons");
-        actionEdit.classList.add("material-icons");
-        actionEdit.textContent ="edit";
-        actionDelete.classList.add("material-icons");
-        actionDelete.textContent ="delete";
-
-        itemActions.appendChild(actionEdit);
-        itemActions.appendChild(actionDelete);
-        itemList.appendChild(itemActions);
-
-        listContainer.appendChild(itemList);
-
-       
-        actionDelete.addEventListener('click',(e)=>{
-            confirmDelete("supplier",supplier.id);
-        });
-
-        //edit product
-        actionEdit.addEventListener('click',(e)=>{
-            let target = window.location.protocol+"//"+window.location.host+"/edit_supplier.html?sid="+supplier.id;
-            window.location.href = target;
-        });
-
-         //item click
-         itemData.addEventListener('click',(e)=>{
-             e.preventDefault();
-            let target = window.location.protocol+"//"+window.location.host+"/supplier_detail.html?sid="+supplier.id;
-            window.location.href = target;
-        });
-
-
-    })
-}
 
 //show summary
 const showInventorySummary = ()=>{
@@ -878,26 +700,23 @@ const saveSupplier = (supplier,option=null)=>{
 }
 
 //save Rep
-const saveRep = (rep,option=null)=>{
-    console.log("prods: ",rep);
+const saveCustomer = (customer,option=null)=>{
+    console.log("prods: ",customer);
     var formData = new FormData();
     if(option == null){
-        formData.append("fname",rep.fname);
-        formData.append("lname",rep.lname);
-        formData.append("email",rep.email);
-        formData.append("service_area",rep.service_area);
-        formData.append("phone",rep.phone);
-        formData.append("password",rep.password);
-        formData.append("admin",rep.admin);
-        formData.append("avatar",rep.avatar);
-        formData.append("btnAddRep","addRep");
+        formData.append("name",customer.name);
+        formData.append("address",customer.address);
+        formData.append("email",customer.email);
+        formData.append("phone",customer.phone);
+        formData.append("rep",customer.rep);
+        formData.append("btnAddCustomer","addCustomer");
     }
     else{
-        Object.keys(rep).forEach((key,i)=>{
+        Object.keys(customer).forEach((key,i)=>{
             // if(key == "avatar") formData.append("'"+key+"'",Object.values(rep))
-            formData.append(key,Object.values(rep)[i])
+            formData.append(key,Object.values(customer)[i])
         })
-        formData.append("btnUpdateRep","updateRep");
+        formData.append("btnUpdateCustomer","updateCustomer");
     }
     console.log("formdata: ",formData);
     var options = {
@@ -905,14 +724,15 @@ const saveRep = (rep,option=null)=>{
         body:formData,
         
     }
-    fetch("/backend/?tag=rep",options)
+    fetch("/backend/?tag=customer",options)
     .then(res=>res.json())
     .then(result=>{
         console.log("result: ",result);
         if(result.code == 0){
-            db.reps = result.reps;
+            db.customers = result.customers;
             storage.setItem("db",JSON.stringify(db));
-            window.location.pathname="/reps.html";
+            showFeedback(result.code,result.msg);
+            window.location.pathname = "/sp/customers.html";
         }
         else showFeedback(result.code,result.msg);
         
@@ -976,6 +796,63 @@ const updateProduct = (products)=>{
     storage.setItem("db",JSON.stringify(db));
     window.location.pathname="/products.html";
 }
+
+
+//load reps listCustomers
+const listCustomers = (customers)=>{
+    const listContainer = document.querySelector("#list_container");
+    customers.forEach(customer=>{
+        const itemList = document.createElement("div");
+        const itemData = document.createElement("div");
+        const itemActions = document.createElement("div");
+        const title = document.createElement("span");
+        const address = document.createElement("span");
+        const actionEdit = document.createElement("span");
+        const actionDelete = document.createElement("span");
+
+        address.textContent = customer.address+", "+customer.phone;
+        title.textContent = customer.name;
+        title.classList.add("item-title");
+        address.classList.add("item-focus");
+        itemData.classList.add("item-data");
+        itemData.appendChild(title);
+        itemData.appendChild(address);
+        itemList.appendChild(itemData);
+        itemList.classList.add("item-list");
+        itemActions.classList.add("action-buttons");
+        actionEdit.classList.add("material-icons");
+        actionEdit.textContent ="edit";
+        actionDelete.classList.add("material-icons");
+        actionDelete.textContent ="delete";
+
+        itemActions.appendChild(actionEdit);
+        itemActions.appendChild(actionDelete);
+        itemList.appendChild(itemActions);
+
+        listContainer.appendChild(itemList);
+
+       
+        actionDelete.addEventListener('click',(e)=>{
+            confirmDelete("customer",customer.id);
+        });
+
+        //edit product
+        actionEdit.addEventListener('click',(e)=>{
+            let target = window.location.protocol+"//"+window.location.host+"/sp/edit_customer.html?cid="+customer.id;
+            window.location.href = target;
+        });
+
+         //item click
+         itemData.addEventListener('click',(e)=>{
+             e.preventDefault();
+            let target = window.location.protocol+"//"+window.location.host+"/sp/customer_detail.html?cid="+customer.id;
+            window.location.href = target;
+        });
+
+
+    })
+}
+
 //Functions end
 
 const loginForm = document.querySelector("#loginform");
@@ -1108,29 +985,29 @@ if(window.location.pathname == "/dashboard.html"){
 }
 
 
-//check if current page is reps.html
-if(window.location.pathname == "/reps.html"){
+//check if current page is customers.html
+if(window.location.pathname == "/sp/customers.html"){
     let login = checkLogin();
     if(login){
         var userId = JSON.parse(session.getItem("session")).id;
-        fetch("/backend/?tag=reps&uid="+userId,{
+        fetch("/backend/?tag=customers&uid="+userId,{
             method:"GET"
         }).then(res=>res.json())
         .then(result=>{
             console.log("result: ",result);
-            db.reps = result.reps;
+            db.customers = result.customers;
             storage.setItem("db",JSON.stringify(db));
             db = JSON.parse(storage.getItem("db"));
-            if(db.reps.length === 0){
+            if(db.customers.length === 0){
                 simulateLoad(1000,()=>{
-                    window.location.pathname = "/add_rep.html";
+                    window.location.pathname = "/sp/add_customer.html";
                 });
             }
             
         }).catch(e=>{console.log(e)})
         .finally(()=>{
             showHideSpinner(0);
-            listReps(db.reps);
+            listCustomers(db.customers);
         })
     }
 }
@@ -1437,40 +1314,21 @@ if(window.location.pathname == "/add_supplier.html"){
 
 
 //check if current page is add reps
-if(window.location.pathname == "/add_rep.html"){
+if(window.location.pathname == "/sp/add_customer.html"){
     let login = checkLogin();
     if(login){
-    const form = document.querySelector("#new_rep_form");
+    const form = document.querySelector("#new_customer_form");
     if(form){
-        
-        let reps = db.reps;
         form.addEventListener('submit',(event)=>{
             event.preventDefault();
-            let fname = document.getElementById("fname").value;
-            let lname = document.getElementById("lname").value;
+            let name = document.getElementById("name").value;
+            let address = document.getElementById("address").value;
             let phone = document.getElementById("phone").value;
-            let service_area = document.getElementById("service_area").value;
             let email = document.getElementById("email").value;
-            let password = document.getElementById("password").value;
             
-            let file = document.getElementById("profile_image").files[0];
             let user_id = JSON.parse(session.getItem("session")).id;
-            let fileData = null;
-            let rep = {avatar:fileData,fname:fname,lname:lname,email:email,phone:phone,service_area:service_area,password:password,admin:user_id};
-            
-            if(file){
-                let reader = new FileReader();
-                reader.addEventListener('load',()=>{
-                    fileData = reader.result;
-                    rep.avatar = file;
-                    saveRep(rep);
-                },false);
-                reader.readAsDataURL(file);
-            }
-            else{
-                console.log("no file");
-                saveRep(rep);
-            }
+            let customer = {name:name,address:address,email:email,phone:phone,rep:user_id};
+            saveCustomer(customer);
 
         })
     }
@@ -1691,58 +1549,41 @@ if(window.location.pathname == "/edit_supplier.html"){
 }
 }
 //check if current page is edit rep
-if(window.location.pathname == "/edit_rep.html"){
+if(window.location.pathname == "/sp/edit_customer.html"){
     let login = checkLogin();
     if(login){
     const urlObject = new URL(window.location.href);
     const params = urlObject.searchParams;
-    let rep = db.reps.filter(p=>{
-        return p.id === params.get("rid");
+    let customer = db.customers.filter(p=>{
+        return p.id === params.get("cid");
     });
-    if(rep.length == 0){
+    
+    if(customer.length == 0){
         window.location.pathname = "/not_found.html";
     }
     else{
-        const form = document.querySelector("#edit_rep_form");
+        const form = document.querySelector("#edit_customer_form");
         if(form){
-            form.fname.value = rep[0].fname;
-            form.lname.value = rep[0].lname;
-            form.email.value = rep[0].email;
-            form.phone.value = rep[0].phone;
-            form.service_area.value = rep[0].service_area;
-            const preview = document.querySelector("#preview");
-            preview.src = rep[0].avatar ? "/data/"+ rep[0].avatar : "/img/reps.svg";
-
-            let fileInput = document.getElementById("profile_image");
-            fileInput.addEventListener("change",(e)=>{
-                if(e.target.files[0] != null){
-                    var url = URL.createObjectURL(e.target.files[0]);
-                    preview.src = url;
-                }
-            })
+            form.name.value = customer[0].name;
+            form.address.value = customer[0].address;
+            form.email.value = customer[0].email;
+            form.phone.value = customer[0].phone;
+            
             form.addEventListener('submit',(event)=>{
                 event.preventDefault();
-                let fname = document.getElementById("fname").value;
-                let lname = document.getElementById("lname").value;
+                let name = document.getElementById("name").value;
+                let address = document.getElementById("address").value;
                 let email = document.getElementById("email").value;
                 let phone = document.getElementById("phone").value;
-                let password = document.getElementById("password").value;
-                let service_area = document.getElementById("service_area").value;
-                let file = fileInput.files[0];
     
-                let rp = {id:rep[0].id};
-                rp.email = rep[0].email;
-                rp.admin = JSON.parse(session.getItem("session")).id;
-                if(file != null) rp.avatar = file;
-                if(rep[0].fname.toLowerCase() != fname.toLowerCase()) rp.fname = fname;
-                if(rep[0].lname.toLowerCase() != lname.toLowerCase()) rp.lname = lname;
-                if(rep[0].email.toLowerCase() != email.toLowerCase()) rp.email = email;
-                if(rep[0].phone != phone) rp.phone = phone;
-                if(rep[0].service_area.toLowerCase() != service_area.toLowerCase()) rp.service_area = service_area;
-                if(password) rp.password = password;
+                let rp = {id:customer[0].id,rep:customer[0].rep};
+                if(customer[0].name.toLowerCase() != name.toLowerCase()) rp.name = name;
+                if(customer[0].address.toLowerCase() != address.toLowerCase()) rp.address = address;
+                if(customer[0].email.toLowerCase() != email.toLowerCase()) rp.email = email;
+                if(customer[0].phone != phone) rp.phone = phone;
                 console.log("prod: ",rp);
                 
-                saveRep(rp,"edit");
+                saveCustomer(rp,"edit");
                
                
             })

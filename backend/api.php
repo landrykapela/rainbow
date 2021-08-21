@@ -763,6 +763,107 @@ class API{
         }
         return $result;
     }
+    public function getCustomers($userId){
+        $result = array();
+        $user = $this->getUserById($userId);
+        if(!$user){
+            $result['code'] = 1;
+            $result['msg'] = "Could not find user";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            $query = $this->con->query("select * from customers where rep='".$userId."'");
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not get customer";
+                $result['error'] = $this->con->error;
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "Successful";
+                $customers = array();
+                while($r=$query->fetch_assoc()){
+                    $customers[] = $r;
+                }
+                $result['customers'] = $customers;
+            }
+        }
+        return $result; 
+    }
+    public function createCustomer($userId,$data){
+        
+        $result = array();
+        $user = $this->getUserById($userId);
+        if(!$user){
+            $result['code'] = 1;
+            $result['msg'] = "Could not find user";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            $id = $this->generateId(12);
+            $data['id'] = $id;
+            $sql = "insert into customers (";
+            for($i=0;$i<sizeof(array_keys($data));$i++){
+                $sql .= array_keys($data)[$i].", ";
+            }
+            $sql .= "date_created) values (";
+            for($i=0;$i<sizeof(array_values($data));$i++){
+                $sql .= "'".array_values($data)[$i]."', ";
+            }
+            $sql .= time().")";
+            $query = $this->con->query($sql);
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not create customer";
+                $result['error'] = $this->con->error;
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "Successful";
+                $result['customers'] = $this->getCustomers($userId)['customers'];
+            }
+        }
+        return $result; 
+    }
+    public function updateCustomer($cid,$data){
+        
+        $result = array();
+        $user = $this->getUserById($data['rep']);
+        if(!$user){
+            $result['code'] = 1;
+            $result['msg'] = "Could not find user";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            if(sizeof(array_keys($data)) > 0){
+                $sql = "update customers set ";
+                for($i=0;$i<sizeof(array_keys($data));$i++){
+                    $sql .= array_keys($data)[$i]."= '".array_values($data)[$i]."'";
+                    if($i < sizeof(array_values($data)) -1) $sql .=", ";
+                }
+               
+                $sql .= " where id='".$cid."'";
+                $query = $this->con->query($sql);
+                if(!$query){
+                    $result['code'] = 1;
+                    $result['msg'] = "Could not update customer";
+                    $result['error'] = $this->con->error;
+                }
+                else{
+                    $result['code'] = 0;
+                    $result['msg'] = "Successful";
+                    $result['customers'] = $this->getCustomers($data['rep'])['customers'];
+                }
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "There is nothing to update";
+                $result['customers'] = $this->getCustomers($data['rep'])['customers'];
+            }
+            
+        }
+        return $result; 
+    }
 }
 
 ?>

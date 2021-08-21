@@ -12,7 +12,7 @@
       name="keyword"
       content="platform for importers, manage imports and distribution, track sales, reporting, web application, manage import costs"
     />
-    <link href="css/main.css" rel="stylesheet" />
+    <link href="/css/main.css" rel="stylesheet" />
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css"
       rel="stylesheet"
@@ -27,32 +27,27 @@
   
   <body>
     <header class="bg-curve-primary-up">
-      <span class="material-icons dash" onclick="window.location.pathname='/dashboard.html'"></span>
+      <span class="material-icons dash" onclick="window.location.pathname='/sp/'"></span>
       <nav>
         <a class="nav-item" href="" id="login"></a>
-        <a class="nav-item" href="help.html">Help</a>
+        <a class="nav-item" href="/help.html">Help</a>
         <span class="nav-item" onclick="signout();">Sign out</span>
       </nav>
     </header>
     <section class="dashboard">
       <div class="details">
-        <div class="icon-button" onclick="window.location.pathname='/products.html'">
+        <div class="icon-button" onclick="window.location.pathname='/sp/customers.html'">
+            <span class="material-icons">people</span>
+            <p>Customers</p> 
+          </div>
+        <div class="icon-button" onclick="window.location.pathname='/sp/sale.html'">
           <span class="material-icons">shopping_basket</span>
-          <p>Products</p>
+          <p>Sales</p>
         </div>
-        <div class="icon-button" onclick="window.location.pathname='/suppliers.html'">
-          <span class="material-icons">local_shipping</span>
-          <p>Suppliers</p>
-        </div>
-        <div class="icon-button" onclick="window.location.pathname='/inventory.html'">
-          <span class="material-icons">inventory</span>
-          <p>Inventory</p>
-        </div>
-        <div class="icon-button" onclick="window.location.pathname='/reps.html'">
-          <span class="material-icons">people</span>
-          <p>Sales Reps</p> 
-        </div>
-        <div class="icon-button" onclick="window.location.pathname='/reports.html'">
+        <div class="col-lg-4 col-md-4">
+          </div>
+          
+        <div class="icon-button" onclick="window.location.pathname='/sp/reports.html'">
           <span class="material-icons">assessment</span>
           <p>Reports</p>
         </div>
@@ -60,12 +55,14 @@
           <span class="material-icons">settings</span>
           <p>Settings</p>
         </div>
+        <div class="col-lg-4 col-md-4">
+        </div>
       </div>
       <div class="graph" id="chart-area">
-        <img src="img/chart.png"/>
+        <img src="/img/chart.png"/>
       </div>
     </section>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="js/main.js"></script>
+    <script src="index.js"></script>
   </body>
 </html>

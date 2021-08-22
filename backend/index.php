@@ -56,7 +56,14 @@ if(isset($_GET['tag'])){
     }
     if(isset($_POST['btnIssueInventory'])){
         $data = $_POST;
-        $result = $api->issueInventory($data['product'],$data['rep'],$data['invoice_no'],$data['amount'],$data['quantity'],$data['admin']);
+        $result = $api->issueInventory($data['product'],$data['rep'],$data['invoice_no'],$data['amount'],$data['quantity'],$data['price'],$data['admin']);
+        echo json_encode($result);
+    }
+    if(isset($_POST['btnTransaction'])){
+        $data = $_POST;
+        unset($data['btnTransaction']);
+        $data['file'] = $_FILES['file'];
+        $result = $api->saveTransaction($data);
         echo json_encode($result);
     }
     if(isset($_POST['btnAddCustomer'])){
@@ -96,6 +103,11 @@ if(isset($_GET['tag'])){
     if(isset($_GET['uid']) && $_GET['tag'] == "customers"){
         $userId = $_GET['uid'];
         $result = $api->getCustomers($userId);
+        echo json_encode($result);
+    }
+    if(isset($_GET['uid']) && $_GET['tag'] == "issues"){
+        $userId = $_GET['uid'];
+        $result = $api->getIssues($userId);
         echo json_encode($result);
     }
 }
@@ -154,6 +166,9 @@ else{
                 break;
             case "supplier":
                 $delete = $api->deleteSupplier($id,$user);
+                break;
+            case "customer":
+                $delete = $api->deleteCustomer($id,$user);
                 break;
         }
        

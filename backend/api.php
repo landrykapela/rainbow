@@ -45,6 +45,9 @@ class API{
                 $result['code'] = 0;
                 $result['msg'] = "Successful";
                 unset($user['password']);
+                if($user['level'] == "1"){
+                    $user = $this->getRepByEmail($user['email'])['rep'];
+                }
                 $result['user'] = $user;
                 
             }
@@ -80,7 +83,9 @@ class API{
                 if($query->num_rows > 0){
                     $result['code'] = 0;
                     $result['msg'] = 'Successful';
-                    $result['user'] = $query->fetch_assoc();
+                    $user= $query->fetch_assoc();
+                    if($user['level'] == 0) $result['user'] = $user;
+                    else $result['user'] = $this->getRepByEmail($user['email'])['rep'];
                     return $result;
                 }
                 return false;
@@ -129,21 +134,24 @@ class API{
         }
         else{
             $sql = "select * from products where user='".$userId."' order by name asc";
-            $query = $this->con->query($sql);
-            if(!$query){
+            if($user['user']['level'] == 1) $sql = "select * from products where user='".$user['user']['admin']."' order by name asc";
                 $result['code'] = 1;
                 $result['msg'] = "Could not get product list for user";
-                
-            }
-            else{
-                $result['code'] = 0;
-                $result['msg'] =  "Successful ";
-                $products = array();
-                while($row = $query->fetch_assoc()) {
-                    $products[] = $row;
+                $query = $this->con->query($sql);
+                if(!$query){
+                    $result['code'] = 1;
+                    $result['msg'] = "Could not get product list for user";
+                    
                 }
-                $result['products'] = $products; 
-            }
+                else{
+                    $result['code'] = 0;
+                    $result['msg'] =  "Successful ";
+                    $products = array();
+                    while($row = $query->fetch_assoc()) {
+                        $products[] = $row;
+                    }
+                    $result['products'] = $products; 
+                }
         }
         return $result;
     }
@@ -450,7 +458,24 @@ class API{
     }
     public function getRepById($repId){
         $result = array();
-        $query = $this->con->query("select u.id as uid,u.password,r.* from user as u inner join reps as r on u.email=r.email where r.id='".$repId."'");
+        $query = $this->con->query("select u.id as uid,u.password,u.level,r.* from user as u inner join reps as r on u.email=r.email where r.id='".$repId."'");
+        if(!$query){
+            $result['code'] = 1;
+            $result['msg'] = "Could not get rep";
+            $result['error'] = $this->con->error;
+            $result['rep'] = null;
+        }
+        else{
+            $result['code'] = 0;
+            $result['msg'] = "Successful";
+            $rep = $query->fetch_assoc();
+            $result['rep'] = $rep;
+        }
+        return $result;
+    }
+    public function getRepByEmail($email){
+        $result = array();
+        $query = $this->con->query("select u.id as uid,u.level,r.* from user as u inner join reps as r on u.email=r.email where r.email='".$email."'");
         if(!$query){
             $result['code'] = 1;
             $result['msg'] = "Could not get rep";
@@ -682,8 +707,8 @@ class API{
         }
         return $result;
     }
-    public function issueInventory($product,$rep,$invoice_no,$amount,$quantity,$admin){
-        $sql = "insert into issues (product,rep,invoice_no,amount,quantity,admin) values('".$product."','".$rep."','".$invoice_no."','".$amount."',".$quantity.",'".$admin."')";
+    public function issueInventory($product,$rep,$invoice_no,$amount,$quantity,$price,$admin){
+        $sql = "insert into issues (product,rep,invoice_no,amount,quantity,price,admin,date_created) values('".$product."','".$rep."','".$invoice_no."','".$amount."',".$quantity.",'".$price."','".$admin."',".time().")";
         $user = $this->getUserById($admin);
         if(!$user){
             $result['code'] = 1;
@@ -743,10 +768,12 @@ class API{
             $result['error'] = $this->con->error;
         }
         else{
-            $query = $this->con->query("select * from issues where admin='".$userId."'");
+            $sql = "select * from issues where admin='".$userId."'";
+            if($user['user']['level'] == "1") $sql = "select * from issues where rep='".$user['user']['id']."'";
+            $query = $this->con->query($sql);
             if(!$query){
                 $result['code'] = 1;
-                $result['msg'] = "Could not get inventory";
+                $result['msg'] = "Could not get inventory ";
                 $result['error'] = $this->con->error;
             }
             else{
@@ -864,6 +891,92 @@ class API{
         }
         return $result; 
     }
-}
+    public function deleteCustomer($cid,$rep){
+        $result = array();
+        $user = $this->getUserById($rep);
+        if(!$user){
+            $result['code'] = 1;
+            $result['msg'] = "Could not find user";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            $sql = "delete from customers where id='".$cid."' and rep='".$rep."'";
+            $query = $this->con->query($sql);
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not delete customer";
+                $result['error'] = $this->con->error;
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "Successful";
+                $result['customers'] = $this->getCustomers($rep)['customers'];
+            }
+            
+        }
+        return $result; 
+    }
+    public function saveTransaction($data){
+        $result = array();
+        $id = $this->generateId(16);
+        $file = $data['file'];
+        // $result['d'] = $data;
+        unset($data['file']);
+        $sql = "insert into transactions (id,";
+        for($i=0;$i<sizeof(array_keys($data));$i++){
+            $sql .= array_keys($data)[$i].", ";
+        }
+        if($file != null) $sql .= "file, ";
+        $sql .= "date_created) values ('".$id."',";
 
+        for($i=0;$i<sizeof(array_values($data));$i++){
+            if(gettype(array_values($data)[$i]) == "string") $sql .= "'".array_values($data)[$i]."',";
+            else $sql .= array_values($data)[$i].",";
+        }
+        if($file != null){
+            $ext = strtolower(pathinfo(UPLOAD_PATH.basename($file["name"]),PATHINFO_EXTENSION));
+            $filename = $id.".".$ext;
+            if($this->saveImage($file,$filename)){
+                $sql .= "'".$filename."',";
+            }
+            else{
+                $sql .= null.",";
+            }
+        }
+        $sql .= time().")";
+        $query = $this->con->query($sql);
+        if(!$query){
+            $result['code'] = 1;
+            $result['msg'] = "Could not record transaction";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            $result['code'] = 0;
+            $result['msg'] = "Success";
+            $result['transactions'] = $this->getTransactions($data['rep'])['transactions'];
+        }
+        
+        return $result;
+    }
+
+    public function getTransactions($repId){
+        $result = array();
+        $query = $this->con->query("select * from transactions where rep='".$repId."'");
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not get transactions";
+                $result['error'] = $this->con->error;
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "Successful";
+                $transactions = array();
+                while($r=$query->fetch_assoc()){
+                    $transactions[] = $r;
+                }
+                $result['transactions'] = $transactions;
+            }
+            return $result;
+    }
+}
 ?>

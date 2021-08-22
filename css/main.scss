@@ -66,11 +66,13 @@ header > nav > a.nav-item{
   width: 100%;
   margin: 0 auto;
   padding:0;
-  @include flex(row, space-between, center);
+  @include flex(row, space-between, flex-start);
 }
 .content .logo {
   @include flex(column, center, center);
   width:50%;
+  height: 100%;
+  align-self: center;
 }
 
 .content .logo > img {
@@ -87,10 +89,11 @@ header > nav > a.nav-item{
   margin:0 auto;
 }
 .content > div.product-details{
-  @include flex(column,flex-start ,flex-start);
+  @include flex(column,center ,flex-start);
   height:auto;
   padding:1em;
   padding-top:0;
+  align-self: center;
 }
 
 //form inputs
@@ -130,7 +133,7 @@ a.nav-item:hover {
   min-height: calc(90vh - 4em);
   height:auto;
   padding: 1em;
-  @include flex(row, space-evenly, center);
+  @include flex(row, space-evenly, flex-start);
 }
 .dashboard :has( > span){
   @include flex(row, space-evenly, flex-start);
@@ -203,6 +206,8 @@ a.nav-item:hover {
 }
 .graph {
   @include flex(column, center, center);
+  height:100%;
+  align-self: center;
 }
 .graph > img {
   width: 420px;

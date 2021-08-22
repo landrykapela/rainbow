@@ -6,9 +6,13 @@ const signout = ()=>{
     if(confirm("Are you sure you want to sign out?")){
         window.localStorage.clear();
         session.clear();
-        
-        new URLSearchParams().keys().forEach(key=>URLSearchParams.delete(key));
-        window.location.href = "/";
+        var urlObj = new URL(window.location.href);
+        Array.from(urlObj.searchParams.keys()).forEach(key=>urlObj.searchParams.delete(key));
+       for(let i=0;i<window.history.length;i++) {
+           window.history.pushState({},{title:"Signout",url:"/"})
+        //    window.location.replace("/");
+       }
+       window.location.replace("/");
     }
     
 }
@@ -267,12 +271,12 @@ const DATA_COUNT = 12;
 const NUMBER_CFG = {count: DATA_COUNT, min: 0, max: 100};
 let db = storage.getItem("db");
 if(db === undefined || db === null){
-    let data = {products:[],users:[],transactions:[],customers:[],reps:[]};
+    let data = {products:[],users:[],transactions:[],customers:[],reps:[],issues:[]};
     storage.setItem("db",JSON.stringify(data));
     db = storage.getItem("db");
 }
 db = JSON.parse(db);
-
+var mySession = JSON.parse(session.getItem("session"));
 if(db.products === undefined){
     db.products = [];
     storage.setItem("db",JSON.stringify(db));
@@ -291,6 +295,11 @@ if(db.users === undefined){
 }
 if(db.transactions === undefined){
     db.transactions = [];
+    storage.setItem("db",JSON.stringify(db));
+    db = JSON.parse(storage.getItem("db"));
+}
+if(db.issues === undefined){
+    db.issues = [];
     storage.setItem("db",JSON.stringify(db));
     db = JSON.parse(storage.getItem("db"));
 }
@@ -375,14 +384,14 @@ const generateChart = ()=>{
 
 //check login 
 const checkLogin = ()=>{
-    let u = session.getItem("session");
+    let u = mySession;
     if(u === undefined || u === null){
         window.location.pathname = "/index.html";
         return false;        
     }
     else{
-        let user = JSON.parse(u);
-        document.querySelector("#login").textContent = user.fname;
+        // let user = JSON.parse(u);
+        document.querySelector("#login").textContent = u.fname;
         return true;
     }
 }
@@ -455,8 +464,8 @@ const randomId = (strength)=>{
 //confirm delete
 const confirmDelete = (itemType,itemId)=>{
     let message = "Are you sure you want to delete this "+itemType+"?";
-    let return_page ="/dashboard.html";
-    var userId = JSON.parse(session.getItem("session")).id;
+    let return_page ="/sp/";
+    var userId =mySession.uid;
     var options = {
         body:JSON.stringify({type:itemType,user_id:userId,id:itemId,btnDelete:"delete"}),
         method:"POST",headers:{'Content-type':'application/json'}
@@ -496,11 +505,21 @@ const confirmDelete = (itemType,itemId)=>{
                 
                 break;
             case "customer":
-                let customers = db.customers.filter(p=>{
-                    return p.id !== itemId;
-                });
-                db.customers = customers;
-                return_page = "/customers.html";
+                fetch("/backend/",options)
+                .then(res=>res.json())
+                .then(result=>{
+                    console.log("results:",result);
+                    db.customers = result.customers;
+                    return_page = "/sp/customers.html";
+                    storage.setItem("db",JSON.stringify(db));
+                    // window.location.pathname = return_page;
+                    showFeedback(result.code,result.msg);
+                })
+                .catch(e=>{
+                    console.log("results:",e);
+                    showFeedback(1,e);
+                })
+                
                 break;
             case "user":
                 let users = db.users.filter(p=>{
@@ -569,7 +588,43 @@ const saveIssue=(issue)=>{
         showFeedback(1,"Something went wrong! Please try again later");
     })
 }
-
+//save transaction
+const saveTransaction=(transaction)=>{
+    var formData = new FormData();
+    formData.append("product",transaction.product);
+    formData.append("rep",transaction.rep);
+    formData.append("invoice_no",transaction.invoice_no);
+    formData.append("quantity",transaction.quantity);
+    formData.append("cost",transaction.amount);
+    formData.append("customer",transaction.customer);
+    formData.append("price",transaction.price);
+    formData.append("type",transaction.type);
+    if(transaction.file) formData.append("file",transaction.file);
+    formData.append("btnTransaction","transaction");
+   
+    
+    var options = {
+        method:"POST",
+        body:formData,
+        
+    }
+    fetch("/backend/?tag=transaction",options)
+    .then(res=>res.json())
+    .then(result=>{
+        console.log("result: ",result);
+        if(result.code == 0){
+            db.transactions = result.transactions;
+            storage.setItem("db",JSON.stringify(db));
+            window.location.pathname="/sp/";
+        }
+        else showFeedback(result.code,result.msg);
+        
+    })
+    .catch(err=>{
+        console.log("err: ",err);
+        showFeedback(1,"Something went wrong! Please try again later");
+    })
+}
 //save inventory
 const saveInventory = (inv,option=null)=>{
     
@@ -939,10 +994,10 @@ if(signupForm){
 
 
 //check if dashboard is loaded
-if(window.location.pathname == "/dashboard.html"){
+if(window.location.pathname == "/sp/"){
   var login = checkLogin();
   if(login){
-    var userId = JSON.parse(session.getItem("session")).id;
+    var userId = mySession.uid;
     fetch("/backend/?tag=products&uid="+userId,{
         method:"GET"
     }).then(res=>res.json())
@@ -952,44 +1007,153 @@ if(window.location.pathname == "/dashboard.html"){
         db.products = products;
         storage.setItem("db",JSON.stringify(db));
         db = JSON.parse(storage.getItem("db"));
-       
-        
     }).catch(e=>{console.log(e)});
     
-    fetch("/backend/?tag=reps&uid="+userId,{
+    fetch("/backend/?tag=issues&uid="+userId,{
         method:"GET"
     }).then(res=>res.json())
     .then(result=>{
-        db.reps = result.reps;
+        console.log("rs: ",result);
+        db.issues = result.issues;
         storage.setItem("db",JSON.stringify(db));
         db = JSON.parse(storage.getItem("db"));
         
     }).catch(e=>{console.log(e)})
     
-    fetch("/backend/?tag=suppliers&uid="+userId,{
+    fetch("/backend/?tag=transactions&uid="+userId,{
         method:"GET"
     }).then(res=>res.json())
     .then(result=>{
         console.log("result: ",result);
-        db.suppliers = result.suppliers;
+        db.transactions = result.transactions;
         storage.setItem("db",JSON.stringify(db));
         db = JSON.parse(storage.getItem("db"));
-        if(db.suppliers.length === 0){
-            simulateLoad(1000,()=>{
-                window.location.pathname = "/add_supplier.html";
-            });
-        }
+        
+    }).catch(e=>{console.log(e)})
+
+    fetch("/backend/?tag=customers&uid="+userId,{
+        method:"GET"
+    }).then(res=>res.json())
+    .then(result=>{
+        console.log("result: ",result);
+        db.customers = result.customers;
+        storage.setItem("db",JSON.stringify(db));
+        db = JSON.parse(storage.getItem("db"));
         
     }).catch(e=>{console.log(e)})
   }
 }
 
+//check if current page eis "sales page"
+if(window.location.pathname == "/sp/sale.html"){
+    let login = checkLogin();
+    if(login){
+        var quantityEl = document.getElementById("quantity");
+        var invoiceEl = document.getElementById("invoice");
+        var priceEl = document.getElementById("price");
+        var amountEl = document.getElementById("amount");
+        var myCustomers = db.customers.filter(c=>c.rep == mySession.uid);
+        const customerEl = document.getElementById("customer");
+        Array.from(customerEl.children).forEach((c,i)=>{
+            if(i>0) customerEl.removeChild(c);
+        });
+        myCustomers.forEach(c=>{
+            customerEl.options.add(new Option(c.name,c.id));
+        })
 
+        var myProducts = db.products.filter(p=>p.user == mySession.admin);
+        const productEl = document.getElementById("product");
+        Array.from(productEl.children).forEach((c,i)=>{
+            if(i>0) productEl.removeChild(c);
+        });
+        myProducts = myProducts.filter(p=>{
+            var nP = p;
+            nP.invoices = [];
+            db.issues.forEach(i=>{
+                if(i.product.id == p.id){
+                    if(nP.invoices.includes(i.invoice_no)) {
+                        console.log("gotcha: ",nP.quantity);
+                        nP.quantity += parseInt(i.quantity);
+                    }
+                    else {
+                        nP.quantity = parseInt(i.quantity);
+                        nP.invoices.push(i.invoice_no);
+                    }
+                       
+                }
+            })
+            db.transactions.forEach(t=>{
+                if(t.product == p.id && nP.invoices.includes(t.invoice_no)){
+                   nP.quantity -= parseInt(t.quantity);
+                   
+                }
+            })
+            return nP;
+            
+        })
+        console.log("P: ",myProducts);
+        myProducts.forEach(p=>{
+            productEl.options.add(new Option(p.name+" ("+p.pack_size+")",p.id));
+        });
+        productEl.addEventListener("change",(e)=>{
+            let val = e.target.value;
+            let prod = myProducts.filter(p=>p.id == val)[0];
+            quantityEl.value = prod.quantity;
+            quantityEl.setAttribute("max",prod.quantity);
+
+            Array.from(invoiceEl.children).forEach(c=>invoiceEl.removeChild(c));
+            prod.invoices.forEach(inv=>{
+                invoiceEl.options.add(new Option(inv));
+            });
+            let myIssue = db.issues.filter(i=>i.invoice_no == invoiceEl.value);
+                console.log("mi: ",myIssue);
+                priceEl.value = myIssue[0].price;
+                amountEl.value = thousandSeparator(myIssue[0].price * quantityEl.value);
+            invoiceEl.addEventListener("change",(e)=>{
+                let ivNo = e.target.value;
+                let myIssue = db.issues.filter(i=>i.invoice_no == ivNo);
+                console.log("mi: ",myIssue);
+                priceEl.value = myIssue[0].price;
+                amountEl.value = thousandSeparator(myIssue[0].price * quantityEl.value);
+            })
+        });
+
+        quantityEl.addEventListener("input",(e)=>{
+            let qt = parseInt(e.target.value);
+            amountEl.value = thousandSeparator(qt * priceEl.value);
+        })
+        priceEl.addEventListener("input",(e)=>{
+            let price = parseFloat(e.target.value);
+            amountEl.value = thousandSeparator(price * quantityEl.value);
+        });
+        const fileInput = document.getElementById("document_file");
+        const form = document.getElementById("sale_form");
+        if(form){
+            form.addEventListener("submit",(e)=>{
+                e.preventDefault();
+                let type = parseInt(form.transaction_type.value);
+                let customer = form.customer.value;
+                let product = form.product.value;
+                let invoice = form.invoice.value;
+                let quantity = parseInt(form.quantity.value);
+                let price = form.price.value;
+                let amount = price * quantity;
+
+                let transaction = {type:type,customer:customer,product:product,invoice_no:invoice,quantity:quantity,price:price,amount:amount};
+                transaction.rep = mySession.id;
+                if(fileInput.files[0]){
+                    transaction.file = fileInput.files[0];
+                }
+                saveTransaction(transaction);
+            })
+        }
+    }
+}
 //check if current page is customers.html
 if(window.location.pathname == "/sp/customers.html"){
     let login = checkLogin();
     if(login){
-        var userId = JSON.parse(session.getItem("session")).id;
+        var userId = mySession.uid;
         fetch("/backend/?tag=customers&uid="+userId,{
             method:"GET"
         }).then(res=>res.json())
@@ -1012,39 +1176,12 @@ if(window.location.pathname == "/sp/customers.html"){
     }
 }
 
-//check if current page is suppliers.html
-if(window.location.pathname == "/suppliers.html"){
-    let login = checkLogin();
-    if(login){
-        var userId = JSON.parse(session.getItem("session")).id;
-        fetch("/backend/?tag=suppliers&uid="+userId,{
-            method:"GET"
-        }).then(res=>res.json())
-        .then(result=>{
-            console.log("result: ",result);
-            db.suppliers = result.suppliers;
-            storage.setItem("db",JSON.stringify(db));
-            db = JSON.parse(storage.getItem("db"));
-            if(db.suppliers.length === 0){
-                simulateLoad(1000,()=>{
-                    window.location.pathname = "/add_supplier.html";
-                });
-            }
-            
-        }).catch(e=>{console.log(e)})
-        .finally(()=>{
-            showHideSpinner(0);
-            listSuppliers(db.suppliers);
-        })
-    }
-}
-
 //check if current page is products.html
 if(window.location.pathname == "/products.html"){
     let login = checkLogin();
     if(login){
         showHideSpinner(1);
-        var userId = JSON.parse(session.getItem("session")).id;
+        var userId = mySession.uid;
         fetch("/backend/?tag=products&uid="+userId,{
             method:"GET"
         }).then(res=>res.json())
@@ -1069,128 +1206,7 @@ if(window.location.pathname == "/products.html"){
     }
 }
 
-//check if current page is inventory.html
-if(window.location.pathname == "/inventory.html"){
-    let login = checkLogin();
-    if(login){
-        // showHideSpinner(1);
-        var userId = JSON.parse(session.getItem("session")).id;
-        fetch("/backend/?tag=inventory&uid="+userId,{
-            method:"GET"
-        }).then(res=>res.json())
-        .then(result=>{
-            console.log("result: ",result);
-            db.inventory = result.inventory;
-            storage.setItem("db",JSON.stringify(db));
-            db = JSON.parse(storage.getItem("db"));
-            
-            
-        }).catch(e=>{console.log(e)})
-        .finally(()=>{
-            // showHideSpinner(0);
-            showInventorySummary()
-        })
-        
-    }
-    
-}
 
-//check if current page is receive.html
-if(window.location.pathname == "/receive.html"){
-    let login = checkLogin();
-    if(login){
-    const form = document.querySelector("#receive_form");
-    if(form){
-        if(db.products.length == 0){
-            if(confirm("There are no products. Please register a product")){
-                window.location.pathname = "/add_product.html";
-            }
-            
-        }
-        else{
-            db.products.sort((p1,p2)=>{
-                return (p1.name < p2.name) ? -1:1
-            }).forEach(p=>{
-                form.product.options.add(new Option(p.name+" ("+p.pack_size+")",p.id));
-            });
-            db.suppliers.forEach(s=>{
-                form.supplier.options.add(new Option(s.name,s.id));
-            });
-        
-            form.cif.addEventListener('input',(e)=>{
-                // form.cif.value = thousandSeparator(e.target.value);
-                let cif = parseFloat(e.target.value);
-                let tpri = (form.tpri.value) ? parseFloat(form.tpri.value) : 0;
-                let clearing = (form.clearing.value) ? parseFloat(form.clearing.value) : 0;
-                let quantity = (form.quantity.value && form.quantity.value > 0) ? parseInt(form.quantity.value) : 1;
-
-                let price = (cif + tpri + clearing)/quantity;
-                form.buying_price.value = price;
-            });
-            form.tpri.addEventListener('input',(e)=>{
-                let tpri = parseFloat(e.target.value);
-                let cif = (form.cif.value) ? parseFloat(form.cif.value) : 0;
-                let clearing = (form.clearing.value) ? parseFloat(form.clearing.value) : 0;
-                let quantity = (form.quantity.value && form.quantity.value > 0) ? parseInt(form.quantity.value) : 1;
-
-                let price = (cif + tpri + clearing)/quantity;
-                console.log("check: ",quantity+"/"+tpri+"/"+clearing+"/"+cif+"/"+price);
-                form.buying_price.value = price;
-            });
-            form.clearing.addEventListener('input',(e)=>{
-                let clearing = parseFloat(e.target.value);
-                let tpri = (form.tpri.value) ? parseFloat(form.tpri.value) : 0;
-                let cif = (form.cif.value) ? parseFloat(form.cif.value) : 0;
-                let quantity = (form.quantity.value && form.quantity.value > 0) ? parseInt(form.quantity.value) : 1;
-
-                let price = (cif + tpri + clearing)/quantity;
-                console.log("check: ",quantity+"/"+tpri+"/"+clearing+"/"+cif+"/"+price);
-                form.buying_price.value = price;
-            });
-            form.quantity.addEventListener('input',(e)=>{
-                let quantity = parseInt(e.target.value);
-                let tpri = (form.tpri.value) ? parseFloat(form.tpri.value) : 0;
-                let clearing = (form.clearing.value) ? parseFloat(form.clearing.value) : 0;
-                let cif = (form.cif.value ) ? parseFloat(form.cif.value) : 0;
-                let price = (cif + tpri + clearing)/quantity;
-                console.log("check: ",quantity+"/"+tpri+"/"+clearing+"/"+cif+"/"+price);
-                form.buying_price.value = price;
-            });
-            form.addEventListener('submit',(e)=>{
-                e.preventDefault();
-                let productId = form.product[form.product.options.selectedIndex].value;
-                let supplierId = form.supplier[form.supplier.options.selectedIndex].value;
-                let product = db.products.filter(p=>{
-                    return p.id === productId;
-                });
-                let supplier = db.suppliers.filter(s=>{
-                    return s.id === supplierId;
-                })
-                
-                let quantity = parseInt(form.quantity.value);
-                let invoice_no = form.invoice.value;
-                let cif = parseFloat(form.cif.value);
-                let tpri=parseFloat(form.tpri.value);
-                let clearing = parseFloat(form.clearing.value);
-                let b_price = parseFloat(form.buying_price.value);
-                let s_price =parseFloat(form.selling_price.value);
-                let invoice_file =form.invoice_file.files[0];
-                let inventory = {product:productId,supplier:supplierId,invoice_no:invoice_no,quantity:quantity,cif:cif,tpri:tpri,clearing:clearing,buying_price:b_price,selling_price:s_price,invoice:invoice_file};
-                var userId = JSON.parse(session.getItem("session")).id;
-                inventory.admin = userId;
-                if(invoice_file){
-                    inventory.invoice = invoice_file;
-                    saveInventory(inventory);
-                }
-                else{
-                    saveInventory(inventory);
-                }
-
-            })
-    }
-}
-    }
-}
 
 //check if current page is issue.html
 if(window.location.pathname == "/issue.html"){
@@ -1273,7 +1289,7 @@ if(window.location.pathname == "/issue.html"){
             });
             let amount = inv[0].selling_price * quantity;
             let issue = {rep:repId,rep_name:repName,product:productId,invoice_no:invoice_no,quantity:quantity,amount:amount};
-            let userId = JSON.parse(session.getItem("session")).id;
+            let userId = mySession.uid;
             issue.admin = userId;
             saveIssue(issue);
         })
@@ -1281,37 +1297,6 @@ if(window.location.pathname == "/issue.html"){
 }
     }
 }
-
-//check if current page is add supplier
-if(window.location.pathname == "/add_supplier.html"){
-    let login = checkLogin();
-    if(login){
-    const form = document.querySelector("#new_supplier_form");
-
-    if(form){
-        countryList.forEach(country=>{
-            let opt = new Option(country);
-            form.country.options.add(opt);
-        });
-        form.addEventListener('submit',(event)=>{
-            event.preventDefault();
-            let name = document.getElementById("name").value;
-            let country = document.getElementById("country").value;
-            let phone = document.getElementById("phone").value;
-            let contact_person = document.getElementById("contact").value;
-            let email = document.getElementById("email").value;
-            let address = document.getElementById("address").value;
-            
-            let admin = JSON.parse(session.getItem("session")).id;
-            let sup = {name:name,country:country,email:email,phone:phone,address:address,contact:contact_person,admin:admin};
-            
-           saveSupplier(sup);
-
-        })
-    }
-}
-}
-
 
 //check if current page is add reps
 if(window.location.pathname == "/sp/add_customer.html"){
@@ -1326,7 +1311,7 @@ if(window.location.pathname == "/sp/add_customer.html"){
             let phone = document.getElementById("phone").value;
             let email = document.getElementById("email").value;
             
-            let user_id = JSON.parse(session.getItem("session")).id;
+            let user_id = mySession.uid;
             let customer = {name:name,address:address,email:email,phone:phone,rep:user_id};
             saveCustomer(customer);
 
@@ -1335,133 +1320,27 @@ if(window.location.pathname == "/sp/add_customer.html"){
 }
 }
 
-//check if current page is add products
-if(window.location.pathname == "/add_product.html"){
-    let login = checkLogin();
-    if(login){
-    const form = document.querySelector("#new_product_form");
-    if(form){
-        
-        form.addEventListener('submit',(event)=>{
-            event.preventDefault();
-            let name = document.getElementById("name").value;
-            let description = document.getElementById("description").value;
-            let pack_size = document.getElementById("pack_size").value;
-            let file = document.getElementById("image_file").files[0];
-
-            var userId = JSON.parse(session.getItem("session")).id;
-            let prod = {name:name,description:description,pack_size:pack_size,image:file,user_id:userId};
-            saveProduct(prod);
-        })
-    }
-}
-}
-
-//check if current page is edit product
-if(window.location.pathname == "/edit_product.html"){
-    let login = checkLogin();
-    if(login){
-    const urlObject = new URL(window.location.href);
-    const params = urlObject.searchParams;
-    let product = db.products.filter(p=>{
-        return p.id === params.get("pid");
-    });
-    if(product.length == 0){
-        window.location.pathname = "/not_found.html";
-    }
-    else{
-        const form = document.querySelector("#edit_product_form");
-        if(form){
-            form.name.value = product[0].name;
-            form.description.value = product[0].description;
-            form.pack_size.value = product[0].pack_size;
-            document.querySelector("#preview").src = "/data/"+product[0].image;
-            form.image_file.addEventListener('change',(e)=>{
-                if(e.target.files[0]){
-                    let reader = new FileReader();
-                    reader.addEventListener('load',()=>{
-                        fileData = reader.result;
-                        var url = URL.createObjectURL(e.target.files[0]);
-                        document.getElementById("preview").src = url;
-                    },false);
-                    reader.readAsDataURL(e.target.files[0]);
-                }
-                
-            })
-            form.addEventListener('submit',(event)=>{
-                event.preventDefault();
-                let name = document.getElementById("name").value;
-                let description = document.getElementById("description").value;
-                let pack_size = document.getElementById("pack_size").value;
-                let file = document.getElementById("image_file").files[0];
-                
-                let prod = product[0];
-                
-                if(prod.name.toLowerCase() != name.toLowerCase()) prod.name = name;
-                if(prod.description.toLowerCase() != description.toLowerCase()) prod.description = description;
-                if(prod.pack_size != pack_size) prod.pack_size = pack_size;
-                let user_id = JSON.parse(session.getItem("session")).id;
-                prod.user_id = user_id;
-                console.log("prod: ",prod);
-                if(file){
-                    prod.image = file;
-                }
-                saveProduct(prod,"edit");
-               
-                
-            })
-        }
-    }
-    
-}
-}
-
-//check if current page is prdoduct detail
-if(window.location.pathname == "/product_detail.html"){
-    let login = checkLogin();
-    if(login){
-    const urlObject = new URL(window.location.href);
-    const params = urlObject.searchParams;
-    let product = db.products.filter(p=>{
-        return p.id === params.get("pid");
-    });
-    if(product.length == 0){
-        window.location.pathname = "/not_found.html";
-    }
-    else{
-                document.getElementById("product_name").textContent = product[0].name;
-                document.getElementById("name").textContent = product[0].name;
-                document.getElementById("description").textContent = product[0].description;
-                document.getElementById("pack_size").textContent = product[0].pack_size;
-                document.getElementById("preview").src = "/data/"+product[0].image;
-                
-        }
-    }
-}
 
 //check if current page is rep detail
-if(window.location.pathname == "/rep_detail.html"){
+if(window.location.pathname == "/sp/customer_detail.html"){
     let login = checkLogin();
     if(login){
     const urlObject = new URL(window.location.href);
     const params = urlObject.searchParams;
-    console.log("reps: ",db.reps);
-    console.log("rid: ",params.get("rid"));
-    let rep = db.reps.filter(p=>{
-        return p.id === params.get("rid");
+    let customer = db.customers.filter(p=>{
+        return p.id === params.get("cid");
     });
-    if(rep.length == 0){
-        window.location.pathname = "/not_found.html";
+    if(customer.length == 0){
+        window.location.pathname = "/sp/not_found.html";
     }
     else{
-                document.getElementById("rep_name").textContent = rep[0].fname + " "+rep[0].lname;
-                document.getElementById("fname").textContent = rep[0].fname;
-                document.getElementById("lname").textContent = rep[0].lname;
-                document.getElementById("area").textContent = rep[0].service_area;
-                document.getElementById("phone").textContent = rep[0].phone;
-                document.getElementById("email").textContent = rep[0].email;
-                document.getElementById("report_link").href = "rep_report.html?rid="+rep[0].id;
-                document.getElementById("preview").src = "/data/"+rep[0].avatar;
+                document.getElementById("customer_name").textContent = customer[0].name;
+                document.getElementById("name").textContent = customer[0].name;
+                document.getElementById("address").textContent = customer[0].address;
+                document.getElementById("phone").textContent = customer[0].phone;
+                document.getElementById("email").textContent = customer[0].email;
+                document.getElementById("report_link").href = "customer_report.html?cid="+customer[0].id;
+                // document.getElementById("preview").src = "/data/"+rep[0].avatar;
                 
         }
     }

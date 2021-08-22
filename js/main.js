@@ -2,12 +2,18 @@
 const storage = window.localStorage;
 const session = window.sessionStorage;
 
+
 const signout = ()=>{
     if(confirm("Are you sure you want to sign out?")){
         window.localStorage.clear();
         session.clear();
-        URLSearchParams.keys().forEach(key=>URLSearchParams.delete(key));
-        // window.location.href = "/";
+        var urlObj = new URL(window.location.href);
+        Array.from(urlObj.searchParams.keys()).forEach(key=>urlObj.searchParams.delete(key));
+       for(let i=0;i<window.history.length;i++) {
+           window.history.pushState({},{title:"Signout",url:"/"})
+        //    window.location.replace("/");
+       }
+       window.location.replace("/");
     }
     
 }
@@ -720,6 +726,7 @@ const saveIssue=(issue)=>{
     formData.append("rep",issue.rep);
     formData.append("invoice_no",issue.invoice_no);
     formData.append("quantity",issue.quantity);
+    formData.append("price",issue.price);
     formData.append("amount",issue.amount);
     formData.append("admin",issue.admin);
     formData.append("btnIssueInventory","IssueInventory");
@@ -993,6 +1000,7 @@ if(loginForm){
         fetch("/backend/",options)
         .then(res=>res.json())
         .then(result=>{
+            console.log("result: ",result);
             if(result.code == 1){
                 var feedback = document.querySelector("#feedback");
                 feedback.textContent = result.msg;
@@ -1102,6 +1110,18 @@ if(window.location.pathname == "/dashboard.html"){
                 window.location.pathname = "/add_supplier.html";
             });
         }
+        
+    }).catch(e=>{console.log(e)})
+
+    fetch("/backend/?tag=issues&uid="+userId,{
+        method:"GET"
+    }).then(res=>res.json())
+    .then(result=>{
+        console.log("result: ",result);
+        db.issues = result.issues;
+        storage.setItem("db",JSON.stringify(db));
+        db = JSON.parse(storage.getItem("db"));
+        
         
     }).catch(e=>{console.log(e)})
   }
@@ -1334,34 +1354,58 @@ if(window.location.pathname == "/issue.html"){
         }
         else{
             let products = [];
-            db.inventory.forEach(inv=>{
-                if(!products.includes(inv.product.id)) products.push(inv.product);
+            var inventories = [];
+            if(db.issues.length > 0){
+                inventories = db.inventory.map(inv=>{
+                    let invNew = inv;
+                    db.issues.forEach(tx=>{
+                        if(tx.invoice_no === inv.invoice_no && inv.product.id == tx.product.id){
+                            invNew.quantity -= tx.quantity;
+                        }
+                    });
+                    return invNew;
+                })
+            }
+            inventories.forEach(inv=>{
+                if(inv.quantity > 0) products.push(inv.product);
             })
             products.sort((p1,p2)=>{
                 if(p1.name < p2.name) return -1; else return 1
+            })
+            Array.from(form.product.children).forEach((c,i)=>{
+                if(i>0) form.product.removeChild(c);
             })
             products.forEach(p=>{
                 form.product.options.add(new Option(p.name+" ("+p.pack_size+")",p.id));
             });
         
-            let inventory = db.inventory.filter(inv=>{
+            let inventory = inventories.filter(inv=>{
                 return inv.product.id == products[0].id;
             });
             form.invoice.options.add(new Option(inventory[0].invoice_no));
             form.quantity.setAttribute("max",inventory[0].quantity);
             form.product.addEventListener('change',(e)=>{
-                let pd = products.filter(p=>{
-                    return p.id === e.target.value;
-                });
-                let inventory = db.inventory.filter(inv=>{
-                    return inv.product.id == pd[0].id;
-                });
-                while(form.invoice.hasChildNodes()){
-                    form.invoice.removeChild(form.invoice.childNodes[0]);
+                if(e.target.value != "-1"){
+                    let pd = products.filter(p=>{
+                        return p.id === e.target.value;
+                    });
+                    let inventory = inventories.filter(inv=>{
+                        return inv.product.id == pd[0].id;
+                    });
+                    while(form.invoice.hasChildNodes()){
+                        form.invoice.removeChild(form.invoice.childNodes[0]);
+                    }
+                    inventory.forEach(inv=>{
+                        form.invoice.options.add(new Option(inv.invoice_no));
+                    });
+
+                    var inv = inventory.filter(inv=>inv.invoice_no == form.invoice.value && inv.product.id == form.product.value);
+                    form.quantity.value = inv[0].quantity;
+                    form.quantity.setAttribute("max",inv[0].quantity);
+                    form.price.value = inv[0].selling_price;
+                    form.amount.value = thousandSeparator(form.price.value * form.quantity.value);
                 }
-                inventory.forEach(inv=>{
-                    form.invoice.options.add(new Option(inv.invoice_no));
-                })
+               
             });
             form.invoice.addEventListener('change',(e)=>{
                 let inventory = db.inventory.filter(inv=>{
@@ -1369,10 +1413,14 @@ if(window.location.pathname == "/issue.html"){
                 });
                 form.quantity.setAttribute("max",inventory[0].quantity);
             })
-            form.quantity.addEventListener('change',(e)=>{
+            form.quantity.addEventListener('input',(e)=>{
                 let quantity = parseInt(e.target.value);
-                
+                form.amount.value = thousandSeparator(quantity * form.price.value);
             });
+            form.price.addEventListener("input",(e)=>{
+                let price = parseFloat(e.target.value);
+                form.amount.value = thousandSeparator(price * form.quantity.value);
+            })
             db.reps.forEach(rep=>{
                 form.rep.options.add(new Option(rep.fname+" "+rep.lname,rep.id));
             })
@@ -1383,19 +1431,12 @@ if(window.location.pathname == "/issue.html"){
             let productId = form.product.options[form.product.options.selectedIndex].value;
             let repId = form.rep.options[form.rep.options.selectedIndex].value;
             let repName = form.rep.options[form.rep.options.selectedIndex].text;
-            let product = db.products.filter(p=>{
-                return p.id === productId;
-            });
-            let rep = db.reps.filter(s=>{
-                return s.id === repId;
-            })
+            let price = form.price.value;
             let quantity = parseInt(form.quantity.value);
             let invoice_no = form.invoice.options[form.invoice.options.selectedIndex].value;
-            let inv = db.inventory.filter(inv=>{
-                return inv.invoice_no == invoice_no && inv.product.id == productId;
-            });
-            let amount = inv[0].selling_price * quantity;
-            let issue = {rep:repId,rep_name:repName,product:productId,invoice_no:invoice_no,quantity:quantity,amount:amount};
+            
+            let amount = parseFloat(price) * quantity;
+            let issue = {rep:repId,rep_name:repName,product:productId,invoice_no:invoice_no,quantity:quantity,amount:amount,price:price};
             let userId = JSON.parse(session.getItem("session")).id;
             issue.admin = userId;
             saveIssue(issue);

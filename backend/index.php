@@ -110,6 +110,11 @@ if(isset($_GET['tag'])){
         $result = $api->getIssues($userId);
         echo json_encode($result);
     }
+    if(isset($_GET['uid']) && $_GET['tag'] == "transactions"){
+        $rid = $_GET['uid'];
+        $result = $api->getTransactions($rid);
+        echo json_encode($result);
+    }
 }
 
 else{

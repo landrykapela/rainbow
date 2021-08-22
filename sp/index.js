@@ -1020,7 +1020,7 @@ if(window.location.pathname == "/sp/"){
         
     }).catch(e=>{console.log(e)})
     
-    fetch("/backend/?tag=transactions&uid="+userId,{
+    fetch("/backend/?tag=transactions&uid="+mySession.id,{
         method:"GET"
     }).then(res=>res.json())
     .then(result=>{

@@ -104,6 +104,10 @@ header > nav > a.nav-item {
   align-self: center;
 }
 
+.list_item:hover {
+  background-color: #97d2e9;
+}
+
 input:invalid {
   outline-color: red;
 }
@@ -120,12 +124,21 @@ input:invalid {
   font-size: 0.5rem;
 }
 
+.bold {
+  font-weight: bold !important;
+}
+
+.text-right {
+  text-align: right !important;
+}
+
 a,
 a:visited,
 a.nav-item,
 a.nav-item:visited {
   color: #045e13;
   text-decoration: none;
+  cursor: pointer;
 }
 
 a:hover,

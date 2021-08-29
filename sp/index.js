@@ -319,12 +319,15 @@ const encodeImage = (file)=>{
       console.log(binaryString);
     }
     reader.readAsDataURL(file);
-    console.log("result: ",reader.result);
     return reader.result;
 }
 const showHideSpinner=(flag)=>{
-    if(flag ==0) document.querySelector('#spinner').classList.add("hidden");
-    else  document.querySelector('#spinner').classList.remove("hidden");
+    var spinner = document.querySelector('#spinner');
+    if(spinner){
+        if(flag ==0) spinner.classList.add("hidden");
+        else  spinner.classList.remove("hidden");
+    }
+    
 }
 //simulate page load
 const simulateLoad =(waitTime,followFunction)=>{
@@ -907,7 +910,141 @@ const listCustomers = (customers)=>{
 
     })
 }
+const showTransactionList = (data,container,title)=>{
+    container.classList.remove("hidden");
+    document.getElementById("chart_container").classList.add("hidden");
+    var repTitle = document.getElementById("report_title");
+    repTitle.textContent = title;
+    Array.from(container.children).forEach((c,i)=>{if(i>1)container.removeChild(c);});
+    const search = document.getElementById("search_report");
+    if(search){
+        search.addEventListener("input",(e)=>{
+            var keyword = e.target.value.toLowerCase();
+            if(keyword.length > 0){
+                var filteredData = data.filter(d=>
+                    d.product.name.toLowerCase().includes(keyword) || 
+                    d.customer.name.toLowerCase().includes(keyword) ||
+                    d.product.pack_size.toLowerCase().includes(keyword)
+                );
+                console.log("fd: ",filteredData);
+                showTransactionList(filteredData,container);
+            }
+            else showTransactionList(data,container);
+        })
+    }
+    
+    data.forEach((d,i)=>{
+        const row = document.createElement("div");
+        row.className ="row my-2 col-lg-12 col-md-12 list_item";
+        if(i%2==0) row.classList.add("bg-light");
+        // row.classList.add("col-md-12");// col-sm-10";
+        const custSpan = document.createElement("span");
+        custSpan.className = "col-md-2 col-lg-2 col-sm-12";
+        custSpan.textContent = d.customer_detail.name;
+        row.appendChild(custSpan);
+        const productSpan = document.createElement("span");
+        productSpan.className = "col-md-2 col-lg-2 col-sm-12";
+        productSpan.textContent = d.product_detail.name;
+        row.appendChild(productSpan);
+        const costSpan = document.createElement("span");
+        costSpan.className = "col-md-2 col-lg-2 col-sm-12 text-right";
+        costSpan.textContent = thousandSeparator(d.price);
+        row.appendChild(costSpan);
+        const dateSpan = document.createElement("span");
+        dateSpan.className = "col-md-2 col-lg-2 col-sm-12";
+        var date = new Date(parseInt(d.date_created)*1000);
+        dateSpan.textContent = date.getDate()+"/"+(date.getMonth()+1)+"/"+date.getFullYear();
+        row.appendChild(dateSpan);
+        const invSpan = document.createElement("span");
+        invSpan.className = "col-md-2 col-lg-2 col-sm-12";
+        invSpan.textContent = d.invoice_no;
+        row.appendChild(invSpan);
+        const invLink = document.createElement("a");
+        invLink.className = "col-md-2 col-lg-2 col-sm-12 text-center";
+        invLink.target = "_blank";
+        invLink.href = "/data/"+d.file;
+        invLink.textContent = "view"
 
+        row.appendChild(invLink);
+        container.appendChild(row);
+    })
+}
+const showPieChart = (data,container,title)=>{
+    document.getElementById("report_container").classList.add("hidden");
+    container.classList.remove("hidden");
+    var cash = 0;
+    data.filter(d=>d.type == 0).forEach(d=>cash += parseInt(d.cost));
+    var credit = 0;
+    data.filter(d=>d.type == 1).forEach(d=>credit += parseInt(d.cost));
+    var all = 0;
+    data.forEach(d=>all +=parseInt(d.cost));
+    var ctx = document.getElementById("chart");
+    ctx.width = 400;
+    const mydata = {
+        labels: [
+          'Cash Sales',
+          'Credit Sales',
+          'All Sales'
+        ],
+        datasets: [{
+          label:title,
+          data: [cash,credit,all],
+          backgroundColor: [
+            'rgb(255, 99, 132)',
+            'rgb(54, 162, 235)',
+            'rgb(255, 205, 86)'
+          ],
+          hoverOffset: 4
+        }]
+      };
+   var options = {
+        type:'pie',
+        data:mydata,
+    }
+    var chart = new Chart(ctx,options);
+   
+}
+//show rport
+const showReport = (options)=>{
+    var container = document.getElementById("report_container");
+    let title = "User Report: Transactions";
+    var data = db.transactions;
+    data = data.map(d=>{
+        let nd = d;
+        nd.product_detail = db.products.filter(p=>p.id == d.product)[0];
+        nd.customer_detail = db.customers.filter(c=>c.id == d.customer)[0];
+        return nd;
+    })
+    switch(options.repType.toLowerCase()){
+        case "all sales":
+            title = "User Report: Transactions";
+            break;
+        case "cash sales":
+            title = "User Report: Cash Transactions";
+            data = data.filter(t=>t.type == 0);
+            break;
+        case "credit sales":
+            title = "User Report: Credit Transactions";
+            data = data.filter(t=>t.type == 1);
+            break;
+        case "inventory":
+            break;
+    }
+    
+    console.log("data: ",data);
+    let format = options.repFormat.toLowerCase();
+    switch(format){
+        case "list":
+            showTransactionList(data,container,title);
+            break;
+        case "pie":
+            showPieChart(db.transactions,document.getElementById("chart_container"),title);
+            break;
+        case "line":
+            break;
+    }
+   
+}
 //Functions end
 
 const loginForm = document.querySelector("#loginform");
@@ -1176,36 +1313,37 @@ if(window.location.pathname == "/sp/customers.html"){
     }
 }
 
-//check if current page is products.html
-if(window.location.pathname == "/products.html"){
+//check if current page is reports.html
+if(window.location.pathname == "/sp/reports.html"){
     let login = checkLogin();
     if(login){
-        showHideSpinner(1);
-        var userId = mySession.uid;
-        fetch("/backend/?tag=products&uid="+userId,{
-            method:"GET"
-        }).then(res=>res.json())
-        .then(result=>{
-            let products = result.products;
-            console.log("result: ",result);
-            db.products = products;
-            storage.setItem("db",JSON.stringify(db));
-            db = JSON.parse(storage.getItem("db"));
-            if(products.length === 0){
-                simulateLoad(1000,()=>{
-                    window.location.pathname = "/add_product.html";
-                });
-            }
-            
-        }).catch(e=>{console.log(e)})
-        .finally(()=>{
-            showHideSpinner(0);
-            listProducts(db.products);
-        })
         
+        var userId = mySession.uid;
+        var repType= document.getElementById("report_type");
+        var repFormat= document.getElementById("report_format");
+        var startDate= document.getElementById("start_date");
+        var endDate= document.getElementById("end_date");
+        const container = document.getElementById("report_container");
+        var options = {repFormat:repFormat.value,repType:repType.options[repType.options.selectedIndex].value};
+        showReport(options);
+        repType.addEventListener("change",(e)=>{
+            options.repType = e.target.value;
+            showReport(options);
+        })
+        repFormat.addEventListener("change",(e)=>{
+            options.repFormat = e.target.value;
+            showReport(options)
+        })
+        startDate.addEventListener("change",(e)=>{
+            container.textContent = e.target.value;
+        })
+        endDate.addEventListener("change",(e)=>{
+            container.textContent = e.target.value;
+        })
+
+       
     }
 }
-
 
 
 //check if current page is issue.html

@@ -95,7 +95,10 @@ header > nav > a.nav-item{
   padding-top:0;
   align-self: center;
 }
+.list_item:hover{
+  background-color: rgb(151, 210, 233);
 
+}
 //form inputs
 input:invalid{
   outline-color: red;
@@ -112,13 +115,22 @@ input:invalid{
 .small-text {
   font-size: 0.5rem;
 }
+.bold{
+  font-weight: bold !important;
+}
+.text-right{
+  text-align: right !important;
+  // align-self: flex-end !important;
+}
 // links
+
 a,
 a:visited,
 a.nav-item,
 a.nav-item:visited {
   color: $secondaryColor;
   text-decoration: none;
+  cursor: pointer;
 }
 a:hover,
 a.nav-item:hover {

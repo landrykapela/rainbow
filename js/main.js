@@ -1262,6 +1262,7 @@ if(window.location.pathname == "/receive.html"){
         
             form.cif.addEventListener('input',(e)=>{
                 // form.cif.value = thousandSeparator(e.target.value);
+
                 let cif = parseFloat(e.target.value);
                 let tpri = (form.tpri.value) ? parseFloat(form.tpri.value) : 0;
                 let clearing = (form.clearing.value) ? parseFloat(form.clearing.value) : 0;
@@ -1371,7 +1372,14 @@ if(window.location.pathname == "/issue.html"){
             })
             products.sort((p1,p2)=>{
                 if(p1.name < p2.name) return -1; else return 1
-            })
+            }) 
+            var productIds = products.map(p=>p.id).filter((p,i,self)=>self.indexOf(p) === i);
+            console.log("p: ",productIds);
+            products = productIds.map((p)=>{
+                let np = products.filter(x=>x.id == p)[0]
+                return np;
+            });
+            console.log("p1: ",products);
             Array.from(form.product.children).forEach((c,i)=>{
                 if(i>0) form.product.removeChild(c);
             })
@@ -1382,7 +1390,7 @@ if(window.location.pathname == "/issue.html"){
             let inventory = inventories.filter(inv=>{
                 return inv.product.id == products[0].id;
             });
-            form.invoice.options.add(new Option(inventory[0].invoice_no));
+            
             form.quantity.setAttribute("max",inventory[0].quantity);
             form.product.addEventListener('change',(e)=>{
                 if(e.target.value != "-1"){
@@ -1392,9 +1400,10 @@ if(window.location.pathname == "/issue.html"){
                     let inventory = inventories.filter(inv=>{
                         return inv.product.id == pd[0].id;
                     });
-                    while(form.invoice.hasChildNodes()){
-                        form.invoice.removeChild(form.invoice.childNodes[0]);
-                    }
+                    Array.from(form.invoice.children).forEach((c,i)=>{
+                        if(i>0)form.invoice.removeChild(c);
+                    })
+                    
                     inventory.forEach(inv=>{
                         form.invoice.options.add(new Option(inv.invoice_no));
                     });
@@ -1412,6 +1421,9 @@ if(window.location.pathname == "/issue.html"){
                     return inv.invoice_no == e.target.value;
                 });
                 form.quantity.setAttribute("max",inventory[0].quantity);
+                form.quantity.value=inventory[0].quantity;
+                form.price.value = inventory[0].selling_price;
+                form.amount.value = thousandSeparator(form.price.value * form.quantity.value);
             })
             form.quantity.addEventListener('input',(e)=>{
                 let quantity = parseInt(e.target.value);

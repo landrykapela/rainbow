@@ -149,9 +149,9 @@ a.nav-item:hover {
 
 .dashboard {
   background-color: white !important;
-  margin: -5em auto;
+  margin: -6em auto;
   box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
-  width: 80%;
+  width: calc(90% - 2em);
   min-height: calc(90vh - 4em);
   height: auto;
   padding: 1em;

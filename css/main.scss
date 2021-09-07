@@ -139,9 +139,9 @@ a.nav-item:hover {
 }
 .dashboard {
   @include setBg($defaultColor);
-  margin: -5em auto;
+  margin: -6em auto;
   @include shade();
-  width: 80%;
+  width: calc(90% - 2em);
   min-height: calc(90vh - 4em);
   height:auto;
   padding: 1em;

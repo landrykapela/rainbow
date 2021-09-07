@@ -910,12 +910,12 @@ const listCustomers = (customers)=>{
 
     })
 }
-const showTransactionList = (data,container,title)=>{
+const showTransactionList = (data,container,title,headRow)=>{
     container.classList.remove("hidden");
     document.getElementById("chart_container").classList.add("hidden");
     var repTitle = document.getElementById("report_title");
     repTitle.textContent = title;
-    Array.from(container.children).forEach((c,i)=>{if(i>1)container.removeChild(c);});
+    Array.from(container.children).forEach((c,i)=>{if(i>0)container.removeChild(c);});
     const search = document.getElementById("search_report");
     if(search){
         search.addEventListener("input",(e)=>{
@@ -927,58 +927,150 @@ const showTransactionList = (data,container,title)=>{
                     d.product.pack_size.toLowerCase().includes(keyword)
                 );
                 console.log("fd: ",filteredData);
-                showTransactionList(filteredData,container);
+                showTransactionList(filteredData,container,title,headRow);
             }
-            else showTransactionList(data,container);
+            else showTransactionList(data,container,title,headRow);
         })
     }
-    
-    data.forEach((d,i)=>{
-        const row = document.createElement("div");
-        row.className ="row my-2 col-lg-12 col-md-12 list_item";
-        if(i%2==0) row.classList.add("bg-light");
-        // row.classList.add("col-md-12");// col-sm-10";
-        const custSpan = document.createElement("span");
-        custSpan.className = "col-md-2 col-lg-2 col-sm-12";
-        custSpan.textContent = d.customer_detail.name;
-        row.appendChild(custSpan);
-        const productSpan = document.createElement("span");
-        productSpan.className = "col-md-2 col-lg-2 col-sm-12";
-        productSpan.textContent = d.product_detail.name;
-        row.appendChild(productSpan);
-        const costSpan = document.createElement("span");
-        costSpan.className = "col-md-2 col-lg-2 col-sm-12 text-right";
-        costSpan.textContent = thousandSeparator(d.price);
-        row.appendChild(costSpan);
-        const dateSpan = document.createElement("span");
-        dateSpan.className = "col-md-2 col-lg-2 col-sm-12";
-        var date = new Date(parseInt(d.date_created)*1000);
-        dateSpan.textContent = date.getDate()+"/"+(date.getMonth()+1)+"/"+date.getFullYear();
-        row.appendChild(dateSpan);
-        const invSpan = document.createElement("span");
-        invSpan.className = "col-md-2 col-lg-2 col-sm-12";
-        invSpan.textContent = d.invoice_no;
-        row.appendChild(invSpan);
-        const invLink = document.createElement("a");
-        invLink.className = "col-md-2 col-lg-2 col-sm-12 text-center";
-        invLink.target = "_blank";
-        invLink.href = "/data/"+d.file;
-        invLink.textContent = "view"
-
-        row.appendChild(invLink);
-        container.appendChild(row);
+    var heading = document.createElement("div");
+    heading.id = "heading";
+    heading.className = "row col-lg-12 col-md-12 my-2 bg-secondary";
+    headRow.forEach(head=>{
+        const item = document.createElement("span");
+        item.className = (head.align.includes("right") || head.text.toLowerCase().includes("actions") || head.text.toLowerCase().includes("date") || head.text.toLowerCase().includes("type")) ? "col-md-1 col-lg-1 col-sm-12 bold" :"col-md-2 col-lg-2 col-sm-12 bold";
+        item.classList.add(head.align);
+        item.textContent = head.text;
+        heading.appendChild(item);
     })
+    container.appendChild(heading);
+    if(data && data.length > 0){
+        data.forEach((d,i)=>{
+            
+            const row = document.createElement("div");
+            row.className ="row my-2 col-lg-12 col-md-12 list_item";
+            if(i%2==0) row.classList.add("bg-light");
+
+            const dateSpan = document.createElement("span");
+            dateSpan.className = "col-md-1 col-lg-1 col-sm-12";
+            var date = new Date(parseInt(d.date_created)*1000);
+            dateSpan.textContent = date.getDate()+"/"+(date.getMonth()+1)+"/"+date.getFullYear();
+            row.appendChild(dateSpan);
+
+            if(!title.includes("Inventory")){
+                const custSpan = document.createElement("span");
+                custSpan.className = "col-md-2 col-lg-2 col-sm-12";
+                custSpan.textContent = d.customer_detail.name;
+                row.appendChild(custSpan);
+            }
+            
+            const productSpan = document.createElement("span");
+            productSpan.className = "col-md-2 col-lg-2 col-sm-12";
+            var product = (!title.includes("Inventory")) ? d.product_detail : d.product;
+            productSpan.textContent = product.name+"("+product.pack_size+")";
+            row.appendChild(productSpan);
+    
+            const qttySpan = document.createElement("span");
+            qttySpan.className = "col-md-1 col-lg-1 col-sm-12 text-right";
+            qttySpan.textContent = d.quantity;
+            row.appendChild(qttySpan);
+    
+            const costSpan = document.createElement("span");
+            costSpan.className = "col-md-1 col-lg-1 col-sm-12 text-right";
+            costSpan.textContent = (title.includes("Inventory")) ? thousandSeparator(d.price * d.quantity) : thousandSeparator(d.cost);
+            row.appendChild(costSpan);
+            if(!title.includes("Inventory")){
+            const typeSpan = document.createElement("span");
+            typeSpan.className = "col-md-1 col-lg-1 col-sm-12";
+            var type = (d.type == 0) ? "Cash" : "Credit";
+            typeSpan.textContent = type;
+            row.appendChild(typeSpan);
+            }
+            const invSpan = document.createElement("span");
+            invSpan.className = "col-md-2 col-lg-2 col-sm-12";
+            invSpan.textContent = d.invoice_no;
+            row.appendChild(invSpan);
+
+            if(!title.includes("Inventory")){
+            const invLink = document.createElement("a");
+            invLink.className = "col-md-1 col-lg-1 col-sm-12 text-center";
+
+            if(d.file == null){
+                invLink.textContent = "no data"
+            }
+            else{
+                invLink.target = "_blank";
+                invLink.href = "/data/"+d.file;
+                invLink.textContent = "view"
+            }
+            row.appendChild(invLink);
+        }
+            container.appendChild(row);
+        })
+    }
+    else{
+        const row = document.createElement("div");
+            row.className ="row my-2 col-lg-12 col-md-12 list_item";
+        const noSpan = document.createElement("span");
+            noSpan.className = "col-md-12 col-lg-12 col-sm-12 text-center";
+            noSpan.textContent = "No data";
+            row.appendChild(noSpan);
+            
+            container.appendChild(row);
+    }
+   
+}
+
+const showLineChart = (data,container,title)=>{
+    document.getElementById("report_container").classList.add("hidden");
+    container.classList.remove("hidden");
+    while(container.hasChildNodes()){
+        container.removeChild(container.childNodes[0]);
+    }
+    data = summarizeData(data,"transactions");
+    var products = [...new Set(data.map(d=>d.product))];
+    var mydata = [];
+    products.forEach(p=>{
+        var dt = data.filter(d=>d.product == p && d.quantity > 0)
+        if(dt.length > 0){
+            mydata.push({name:dt[0].product_detail.name+"("+dt[0].product_detail.pack_size+")",quantity:dt[0].quantity})
+        }
+    })
+    
+    var ctx = document.createElement("canvas");
+    container.appendChild(ctx);
+    ctx.width = 400;
+    const chartData = {
+        labels: mydata.map(d=>d.name),
+        datasets: [{
+          label:title,
+          data: mydata.map(d=>d.quantity),
+          hoverOffset: 4,
+          fill:false,
+          backgroundColor:"#fa8e00",
+          borderColor:"#fa8e00"
+        }]
+      };
+   var options = {
+        type:'line',
+        data:chartData,
+    }
+    var chart = new Chart(ctx,options);
+   
 }
 const showPieChart = (data,container,title)=>{
     document.getElementById("report_container").classList.add("hidden");
     container.classList.remove("hidden");
+    while(container.hasChildNodes()){
+        container.removeChild(container.childNodes[0]);
+    }
     var cash = 0;
     data.filter(d=>d.type == 0).forEach(d=>cash += parseInt(d.cost));
     var credit = 0;
     data.filter(d=>d.type == 1).forEach(d=>credit += parseInt(d.cost));
     var all = 0;
     data.forEach(d=>all +=parseInt(d.cost));
-    var ctx = document.getElementById("chart");
+    var ctx = document.createElement("canvas");
+    container.appendChild(ctx);
     ctx.width = 400;
     const mydata = {
         labels: [
@@ -1004,13 +1096,71 @@ const showPieChart = (data,container,title)=>{
     var chart = new Chart(ctx,options);
    
 }
+//summarize trx data
+const summarizeData = (txData,type)=>{
+    let data = [];
+    var sourceData = txData;
+    
+    for(let i=0;i<sourceData.length;i++){
+        let issue = sourceData[i];
+        var productId = (type.toLowerCase() == "transactions") ? issue.product : issue.product.id;
+        let idx = (type.toLowerCase() == "transactions") ? data.findIndex(d=>d.product == productId && d.invoice_no == issue.invoice_no) : data.findIndex(d=>d.product.id == productId && d.invoice_no == issue.invoice_no);
+        if(idx === -1){
+            data.push(issue);
+        }    
+        else{
+            let d = data[idx];
+            let qt = d.quantity + issue.quantity;
+            d.quantity = qt;
+            data[idx] = d;
+        }
+        
+    }
+    
+    return data;
+}
+const showRepInventory = (transactions,title)=>{
+    let issues = db.issues.filter(i=>i.rep.uid == mySession.uid).map(i=>{
+        i.quantity = parseInt(i.quantity);
+        return i;
+    });
+    // var transactions = db.transactions.filter(i=>i.rep.uid == mySession.uid);
+    console.log("issues: ",issues);
+    let data = summarizeData(issues,"issues");
+    // console.log("issuesss: ",data);
+    var summary = data.map((i=>{
+        let issue = i;
+        let qtty = parseInt(i.quantity);
+        let txns = summarizeData(transactions,"transactions");
+        let tx = txns.filter(t=>t.product == i.product.id && t.invoice_no == i.invoice_no);
+        console.log("tx: ",tx);
+        if(tx.length > 0){
+            tx.forEach(x=>{
+                console.log("qtty: "+x.quantity,qtty);
+                qtty -= parseInt(x.quantity);
+                console.log("iq: ",qtty);
+             })
+             issue.quantity = qtty;
+        }
+        else{
+            issue.quantity = qtty;
+        }
+        return issue;
+    }))
+    console.log("rep inv: ",summary);
+    var heads=[{text:"Date",align:"text-left"},{text:"Product",align:"text-left"},{text:"Stock",align:"text-right"},{text:"Value",align:"text-right"},{text:"Invoice",align:"text-left"}];
+            
+    showTransactionList(summary,document.getElementById("report_container"),title,heads);
+}
+
 //show rport
 const showReport = (options)=>{
     var container = document.getElementById("report_container");
     let title = "User Report: Transactions";
     var data = db.transactions;
-    data = data.map(d=>{
+    var transactions = data.map(d=>{
         let nd = d;
+        nd.quantity = parseInt(d.quantity);
         nd.product_detail = db.products.filter(p=>p.id == d.product)[0];
         nd.customer_detail = db.customers.filter(c=>c.id == d.customer)[0];
         return nd;
@@ -1021,26 +1171,33 @@ const showReport = (options)=>{
             break;
         case "cash sales":
             title = "User Report: Cash Transactions";
-            data = data.filter(t=>t.type == 0);
+            transactions = transactions.filter(t=>parseInt(t.type) == 0);
             break;
         case "credit sales":
+            console.log("in: ",transactions);
             title = "User Report: Credit Transactions";
-            data = data.filter(t=>t.type == 1);
+            transactions = transactions.filter(t=>parseInt(t.type) == 1);
+
+            console.log("txn: ",transactions);
             break;
         case "inventory":
+            title = "User Report: Inventory";
+            showRepInventory(transactions,title);
             break;
     }
     
-    console.log("data: ",data);
     let format = options.repFormat.toLowerCase();
     switch(format){
         case "list":
-            showTransactionList(data,container,title);
+            var heads=[{text:"Date",align:"text-left"},{text:"Customer Name",align:"text-left"},{text:"Product",align:"text-left"},{text:"Quantity",align:"text-right"},{text:"Cost",align:"text-right"},{text:"Type",align:"text-left"},{text:"Invoice",align:"text-left"},{text:"Action",align:"text-center"},];
+            if(options.repType.toLowerCase() !== "inventory") showTransactionList(transactions,container,title,heads);
             break;
         case "pie":
-            showPieChart(db.transactions,document.getElementById("chart_container"),title);
+            showPieChart(transactions,document.getElementById("chart_container"),title);
             break;
         case "line":
+            showLineChart(transactions,document.getElementById("chart_container"),title);
+            
             break;
     }
    
@@ -1243,9 +1400,12 @@ if(window.location.pathname == "/sp/sale.html"){
                 invoiceEl.options.add(new Option(inv));
             });
             let myIssue = db.issues.filter(i=>i.invoice_no == invoiceEl.value);
-                console.log("mi: ",myIssue);
-                priceEl.value = myIssue[0].price;
-                amountEl.value = thousandSeparator(myIssue[0].price * quantityEl.value);
+                console.log("mi1: ",myIssue);
+                if(myIssue.length > 0){
+                    priceEl.value = myIssue[0].price;
+                    amountEl.value = thousandSeparator(myIssue[0].price * quantityEl.value);
+                }
+                
             invoiceEl.addEventListener("change",(e)=>{
                 let ivNo = e.target.value;
                 let myIssue = db.issues.filter(i=>i.invoice_no == ivNo);
@@ -1281,7 +1441,13 @@ if(window.location.pathname == "/sp/sale.html"){
                 if(fileInput.files[0]){
                     transaction.file = fileInput.files[0];
                 }
-                saveTransaction(transaction);
+                if(transaction.product == 0 || transaction.customer == 0 || transaction.invoice_no == "" || transaction.quantity == 0){
+                    var feedback = document.getElementById("form-feedback");
+                    feedback.textContent = "Invalid data. Please fill in correct information";
+                    feedback.classList.remove("hidden");
+                    feedback.classList.add("alert-danger");
+                }
+                else saveTransaction(transaction);
             })
         }
     }
@@ -1371,6 +1537,7 @@ if(window.location.pathname == "/issue.html"){
             products.sort((p1,p2)=>{
                 if(p1.name < p2.name) return -1; else return 1
             })
+            products = products.filter((p,i,self)=>self.indexOf(p) === i);
             products.forEach(p=>{
                 form.product.options.add(new Option(p.name+" ("+p.pack_size+")",p.id));
             });
@@ -1379,7 +1546,7 @@ if(window.location.pathname == "/issue.html"){
                 return inv.product.id == products[0].id;
             });
             form.invoice.options.add(new Option(inventory[0].invoice_no));
-            form.quantity.setAttribute("max",inventory[0].quantity);
+            form.quantity.setAttribute("max",parsInt(inventory[0].quantity));
             form.product.addEventListener('change',(e)=>{
                 let pd = products.filter(p=>{
                     return p.id === e.target.value;
@@ -1396,13 +1563,15 @@ if(window.location.pathname == "/issue.html"){
             });
             form.invoice.addEventListener('change',(e)=>{
                 let inventory = db.inventory.filter(inv=>{
-                    return inv.invoice_no == e.target.value;
+                    return inv.invoice_no == e.target.value && inv.product.id == form.product.value;
                 });
-                form.quantity.setAttribute("max",inventory[0].quantity);
+                form.quantity.setAttribute("max",parsInt(inventory[0].quantity));
             })
-            form.quantity.addEventListener('change',(e)=>{
+            form.quantity.addEventListener('input',(e)=>{
                 let quantity = parseInt(e.target.value);
-                
+                let amount = form.selling_price * quantity;
+                form.amount.value = amount;
+                console.log("max: ",)
             });
             db.reps.forEach(rep=>{
                 form.rep.options.add(new Option(rep.fname+" "+rep.lname,rep.id));

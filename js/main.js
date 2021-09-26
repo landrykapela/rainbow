@@ -136,8 +136,8 @@ const countryList = [
     "Kazakhstan",
     "Kenya",
     "Kiribati",
-    "Korea (the Democratic People's Republic of)",
-    "Korea (the Republic of)",
+    "Korea",
+    "Korea (North)",
     "Kuwait",
     "Kyrgyzstan",
     "Lao People's Democratic Republic (the)",
@@ -204,7 +204,7 @@ const countryList = [
     "Rwanda",
     "Réunion",
     "Saint Barthélemy",
-    "Saint Helena, Ascension and Tristan da Cunha",
+    "Saint Helena",
     "Saint Kitts and Nevis",
     "Saint Lucia",
     "Saint Martin (French part)",
@@ -225,7 +225,7 @@ const countryList = [
     "Solomon Islands",
     "Somalia",
     "South Africa",
-    "South Georgia and the South Sandwich Islands",
+    "South Georgia ",
     "South Sudan",
     "Spain",
     "Sri Lanka",
@@ -252,13 +252,12 @@ const countryList = [
     "Uganda",
     "Ukraine",
     "United Arab Emirates (the)",
-    "United Kingdom of Great Britain and Northern Ireland (the)",
-    "United States Minor Outlying Islands (the)",
-    "United States of America (the)",
+    "United Kingdom",
+    "United States of America",
     "Uruguay",
     "Uzbekistan",
     "Vanuatu",
-    "Venezuela (Bolivarian Republic of)",
+    "Venezuela",
     "Viet Nam",
     "Virgin Islands (British)",
     "Virgin Islands (U.S.)",
@@ -270,13 +269,14 @@ const countryList = [
   ];
 const DATA_COUNT = 12;
 const NUMBER_CFG = {count: DATA_COUNT, min: 0, max: 100};
-let db = storage.getItem("db");
-if(db === undefined || db === null){
+let dbString = storage.getItem("db");
+if(dbString === undefined || dbString === null){
     let data = {issues:[],suppliers:[],products:[],users:[],transactions:[],inventory:[],customers:[],reps:[]};
     storage.setItem("db",JSON.stringify(data));
-    db = storage.getItem("db");
+    dbString = storage.getItem("db");
 }
-db = JSON.parse(db);
+let db = JSON.parse(dbString);
+var mySession = JSON.parse(session.getItem("session"));
 if(db.suppliers === undefined){
     db.suppliers = [];
     storage.setItem("db",JSON.stringify(db));
@@ -983,6 +983,508 @@ const updateProduct = (products)=>{
     storage.setItem("db",JSON.stringify(db));
     window.location.pathname="/products.html";
 }
+
+const showTransactionList = (data,container,title,headRow)=>{
+    container.classList.remove("hidden");
+    document.getElementById("chart_container").classList.add("hidden");
+    var repTitle = document.getElementById("report_title");
+    repTitle.textContent = title;
+    let source = data.filter(d=>true);
+    Array.from(container.children).forEach((c,i)=>{if(i>0)container.removeChild(c);});
+    const search = document.getElementById("search_report");
+    if(search){
+        search.addEventListener("input",(e)=>{
+            var keyword = e.target.value;
+            var filteredData;
+            if(keyword.length > 0){
+                keyword = keyword.toLowerCase();
+                filteredData = source.filter(d=>{
+                    return (d.product_detail.name.toLowerCase().includes(keyword) || 
+                    d.rep.fname.toLowerCase().includes(keyword) ||
+                    d.rep.lname.toLowerCase().includes(keyword))
+                }
+                );
+                console.log("fd: ",filteredData);
+                console.log("d: ",data);
+                showTransactionList(filteredData,container,title,headRow);
+            }
+            else {
+                showTransactionList(filteredData,container,title,headRow);
+            }
+        })
+    }
+    var heading = document.createElement("div");
+    heading.id = "heading";
+    heading.className = "row col-lg-12 col-md-12 my-2 bg-secondary";
+    headRow.forEach(head=>{
+        const item = document.createElement("span");
+        item.className = (head.align.includes("right") || head.text.toLowerCase().includes("action") || head.text.toLowerCase().includes("date") || head.text.toLowerCase().includes("type")) ? "col-md-1 col-lg-1 col-sm-12 bold" :"col-md-2 col-lg-2 col-sm-12 bold";
+        item.classList.add(head.align);
+        if(head.text.includes("Cost")) item.className = "col-md-2 col-lg-2 col-sm-12 bold text-right";
+        item.textContent = head.text;
+        heading.appendChild(item);
+    })
+    container.appendChild(heading);
+    if(data && data.length > 0){
+        data.forEach((d,i)=>{
+            
+            const row = document.createElement("div");
+            row.className ="row my-2 col-lg-12 col-md-12 list_item";
+            if(i%2==0) row.classList.add("bg-light");
+
+            const dateSpan = document.createElement("span");
+            dateSpan.className = "col-md-1 col-lg-1 col-sm-12";
+            var date = new Date(parseInt(d.date_created)*1000);
+            dateSpan.textContent = date.getDate()+"/"+(date.getMonth()+1)+"/"+date.getFullYear();
+            row.appendChild(dateSpan);
+
+            if(!title.includes("Inventory")){
+                const custSpan = document.createElement("span");
+                custSpan.className = "col-md-2 col-lg-2 col-sm-12";
+                custSpan.textContent = d.rep.fname+" "+d.rep.lname;
+                row.appendChild(custSpan);
+            }
+            
+            const productSpan = document.createElement("span");
+            productSpan.className = "col-md-2 col-lg-2 col-sm-12";
+            var product = (!title.includes("Inventory")) ? d.product_detail : d.product;
+            productSpan.textContent = product.name+"("+product.pack_size+")";
+            row.appendChild(productSpan);
+    
+            const qttySpan = document.createElement("span");
+            qttySpan.className = "col-md-1 col-lg-1 col-sm-12 text-right";
+            qttySpan.textContent = d.quantity;
+            row.appendChild(qttySpan);
+    
+            const costSpan = document.createElement("span");
+            costSpan.className = "col-md-2 col-lg-2 col-sm-12 text-right";
+            costSpan.textContent = (title.includes("Inventory")) ? thousandSeparator(d.selling_price * d.quantity) : thousandSeparator(d.quantity * d.price);
+            row.appendChild(costSpan);
+            if(!title.includes("Inventory")){
+            const typeSpan = document.createElement("span");
+            typeSpan.className = "col-md-1 col-lg-1 col-sm-12";
+            var type = (d.type == 0) ? "Cash" : "Credit";
+            typeSpan.textContent = type;
+            row.appendChild(typeSpan); 
+            }
+            const invSpan = document.createElement("span");
+            invSpan.className = "col-md-2 col-lg-2 col-sm-12";
+            invSpan.textContent = d.invoice_no;
+            row.appendChild(invSpan);
+
+            if(!title.includes("Inventory")){
+            const invLink = document.createElement("a");
+            invLink.className = "col-md-1 col-lg-1 col-sm-12 text-left";
+
+            if(d.file == null){
+                invLink.textContent = "no data"
+            }
+            else{
+                invLink.target = "_blank";
+                invLink.href = "/data/"+d.file;
+                invLink.textContent = "view"
+            }
+            row.appendChild(invLink);
+        }
+            container.appendChild(row);
+        })
+    }
+    else{
+        const row = document.createElement("div");
+            row.className ="row my-2 col-lg-12 col-md-12 list_item";
+        const noSpan = document.createElement("span");
+            noSpan.className = "col-md-12 col-lg-12 col-sm-12 text-center";
+            noSpan.textContent = "No data";
+            row.appendChild(noSpan);
+            
+            container.appendChild(row);
+    }
+   
+}
+
+const showGroupedTransactionList = (data,container,title,headRow,groupBy)=>{
+    container.classList.remove("hidden");
+    document.getElementById("chart_container").classList.add("hidden");
+    var repTitle = document.getElementById("report_title");
+    repTitle.textContent = title;
+    Array.from(container.children).forEach((c,i)=>{if(i>0)container.removeChild(c);});
+    const search = document.getElementById("search_report");
+    
+    var heading = document.createElement("div");
+    heading.id = "heading";
+    heading.className = "row col-lg-12 col-md-12 my-2 bg-secondary";
+    headRow.forEach(head=>{
+        const item = document.createElement("span");
+        item.className = (head.align.includes("right") || head.text.toLowerCase().includes("action") || head.text.toLowerCase().includes("date") || head.text.toLowerCase().includes("type")) ? "col-md-1 col-lg-1 col-sm-12 bold" :"col-md-2 col-lg-2 col-sm-12 bold";
+        item.classList.add(head.align);
+        if(head.text.includes("Cost") || head.text.includes("date")) item.className = "col-md-2 col-lg-2 col-sm-12 bold text-right";
+        item.textContent = head.text;
+        heading.appendChild(item);
+    })
+    container.appendChild(heading);
+    var keys = Object.keys(data);
+    var values = Object.values(data);
+    console.log("keys: ",values);
+    if(keys && keys.length > 0){
+        keys.forEach((key,i)=>{
+            const hRow = document.createElement("div");
+            hRow.className = "row my-2 px-1 col-lg-12 col-md-12 list_item bg-success";
+            var title;
+            var head;
+            switch(groupBy){
+                case "rep":
+                    head = db.reps.filter(r=>r.id == key)[0];
+                    title = head.fname + " "+head.lname;
+                    break;
+                case "product":
+                    head = db.products.filter(p=>p.id == key)[0];
+                    title = head.name+" - "+head.pack_size;
+                    break;
+                case "invoice_no":
+                    title = key;
+                    break;
+
+            }
+            hRow.textContent = title;
+            container.appendChild(hRow);
+            values[i].forEach((d,k)=>{
+                const row = document.createElement("div");
+                row.className ="row my-2 col-lg-12 col-md-12 list_item";
+                if(k%2==0) row.classList.add("bg-light");
+    
+                const dateSpan = document.createElement("span");
+                dateSpan.className = "col-md-1 col-lg-1 col-sm-12";
+                var date = new Date(parseInt(d.date_created)*1000);
+                dateSpan.textContent = date.getDate()+"/"+(date.getMonth()+1)+"/"+date.getFullYear();
+                row.appendChild(dateSpan);
+    
+                if(!title.includes("Inventory")){
+                    const custSpan = document.createElement("span");
+                    custSpan.className = "col-md-2 col-lg-2 col-sm-12";
+                    custSpan.textContent = d.rep.fname+" "+d.rep.lname;
+                    row.appendChild(custSpan);
+                }
+                
+                const productSpan = document.createElement("span");
+                productSpan.className = "col-md-2 col-lg-2 col-sm-12";
+                var product = (!title.includes("Inventory")) ? d.product_detail : d.product;
+                productSpan.textContent = product.name+"("+product.pack_size+")";
+                row.appendChild(productSpan);
+        
+                const qttySpan = document.createElement("span");
+                qttySpan.className = "col-md-1 col-lg-1 col-sm-12 text-right";
+                qttySpan.textContent = d.quantity;
+                row.appendChild(qttySpan);
+        
+                const costSpan = document.createElement("span");
+                costSpan.className = "col-md-2 col-lg-2 col-sm-12 text-right";
+                costSpan.textContent = (title.includes("Inventory")) ? thousandSeparator(d.selling_price * d.quantity) : thousandSeparator(d.quantity * d.price);
+                row.appendChild(costSpan);
+                if(!title.includes("Inventory")){
+                const typeSpan = document.createElement("span");
+                typeSpan.className = "col-md-1 col-lg-1 col-sm-12";
+                var type = (d.type == 0) ? "Cash" : "Credit";
+                typeSpan.textContent = type;
+                row.appendChild(typeSpan); 
+                }
+                const invSpan = document.createElement("span");
+                invSpan.className = "col-md-2 col-lg-2 col-sm-12";
+                invSpan.textContent = d.invoice_no;
+                row.appendChild(invSpan);
+    
+                if(!title.includes("Inventory")){
+                const invLink = document.createElement("a");
+                invLink.className = "col-md-1 col-lg-1 col-sm-12 text-left";
+    
+                if(d.file == null){
+                    invLink.textContent = "no data"
+                }
+                else{
+                    invLink.target = "_blank";
+                    invLink.href = "/data/"+d.file;
+                    invLink.textContent = "view"
+                }
+                row.appendChild(invLink);
+            }
+                container.appendChild(row);
+            })
+           
+        })
+    }
+    else{
+        const row = document.createElement("div");
+            row.className ="row my-2 col-lg-12 col-md-12 list_item";
+        const noSpan = document.createElement("span");
+            noSpan.className = "col-md-12 col-lg-12 col-sm-12 text-center";
+            noSpan.textContent = "No data";
+            row.appendChild(noSpan);
+            
+            container.appendChild(row);
+    }
+   
+}
+
+const showLineChart = (data,container,title)=>{
+    document.getElementById("report_container").classList.add("hidden");
+    container.classList.remove("hidden");
+    while(container.hasChildNodes()){
+        container.removeChild(container.childNodes[0]);
+    }
+    data = summarizeData(data,"transactions");
+    var products = [...new Set(data.map(d=>d.product))];
+    var mydata = [];
+    products.forEach(p=>{
+        var dt = data.filter(d=>d.product == p && d.quantity > 0)
+        if(dt.length > 0){
+            mydata.push({name:dt[0].product_detail.name+"("+dt[0].product_detail.pack_size+")",quantity:dt[0].quantity})
+        }
+    })
+    
+    var ctx = document.createElement("canvas");
+    container.appendChild(ctx);
+    ctx.width = 400;
+    const chartData = {
+        labels: mydata.map(d=>d.name),
+        datasets: [{
+          label:title,
+          data: mydata.map(d=>d.quantity),
+          hoverOffset: 4,
+          fill:false,
+          backgroundColor:"#fa8e00",
+          borderColor:"#fa8e00"
+        }]
+      };
+   var options = {
+        type:'line',
+        data:chartData,
+    }
+    var chart = new Chart(ctx,options);
+   
+}
+const showPieChart = (data,container,title,groupBy=null)=>{
+    document.getElementById("report_container").classList.add("hidden");
+    container.classList.remove("hidden");
+    while(container.hasChildNodes()){
+        container.removeChild(container.childNodes[0]);
+    }
+    var options = {
+        type:'pie',
+        plugins:{
+            legend:{
+                display:true,
+                position:'left'
+            }
+        }
+       
+    }
+    var ctx = document.createElement("canvas");
+    container.appendChild(ctx);
+    ctx.width = 300;
+    ctx.height = 300;
+    if(groupBy == null){
+        var cash = 0;
+        data.filter(d=>d.type == 0).forEach(d=>cash += parseInt(d.cost));
+        var credit = 0;
+        data.filter(d=>d.type == 1).forEach(d=>credit += parseInt(d.cost));
+        var all = 0;
+        data.forEach(d=>all +=parseInt(d.cost));
+        const mydata = {
+            labels: [
+            'Cash Sales',
+            'Credit Sales',
+            'All Sales'
+            ],
+            datasets: [{
+            label:title,
+            data: [cash,credit,all],
+            backgroundColor: [
+                'rgb(255, 99, 132)',
+                'rgb(54, 162, 235)',
+                'rgb(255, 205, 86)'
+            ],
+            hoverOffset: 4
+            }]
+        };
+        options.data = mydata;
+    }
+    else{
+        var keys = Object.keys(data);
+        var vals = Object.values(data);
+        var labels = [];
+        var sums = [];
+        var backgroundColors = [];
+        
+        keys.forEach((key,i)=>{
+            var randomColor = "#"+Math.floor(Math.random()*16777215).toString(16);
+            backgroundColors.push(randomColor);
+            var item;
+            var head;
+            let sum = 0;
+            switch(groupBy){
+                case "rep":
+                    item = db.reps.filter(r=>r.id == key)[0];
+                    head = item.fname+" "+item.lname;
+                    break;
+                case "product":
+                    item = db.products.filter(p=>p.id == key)[0];
+                    head = item.name+"("+item.pack_size+")";
+                    break;
+                case "invoice_no":
+                    head = key;
+                    break;
+            }
+            labels.push(head);
+            vals[i].forEach(v=>{
+                sum += parseInt(v.cost);
+            });
+            sums.push(sum);
+        });
+        const mydata = {
+            labels: labels,
+            datasets: [{
+            label:title,
+            data: sums,
+            backgroundColor: backgroundColors,
+            hoverOffset: 4
+            }]
+        };
+        options.data = mydata;
+        console.log("pie d: ",mydata);
+    }
+    var chart = new Chart(ctx,options);
+   
+}
+//summarize trx data
+const summarizeData = (txData,groupBy=null)=>{
+    console.log("summarizing...: ",groupBy)
+    let data = [];
+    var sourceData = txData;
+    
+    for(let i=0;i<sourceData.length;i++){
+        let issue = sourceData[i];
+        var productId = issue.product.id;
+        let idx = data.findIndex(d=>d.product.id == productId && d.invoice_no == issue.invoice_no && d.rep.uid == issue.rep.uid);
+        if(idx === -1){
+            data.push(issue);
+        }    
+        else{
+            let d = data[idx];
+            let qt = d.quantity + issue.quantity;
+            d.quantity = qt;
+            data[idx] = d;
+        }
+        
+    }
+    var result = data;
+    if(groupBy != null) {
+        result = (groupBy == "invoice_no") ?   _.groupBy(data,d=>d.invoice_no) :_.groupBy(data,d=>d[groupBy]);
+        if(groupBy == "rep") result = _.groupBy(data,d=>d.rep.id);
+        console.log("re: ",result);
+        var keys = Object.keys(result);
+        keys.forEach((key,i)=>{
+            console.log("r: ",result[key]);
+        })
+    }
+    return result;
+}
+const showRepInventory = (title)=>{
+    let invs = db.inventory.filter(i=>i.admin == mySession.id).map(i=>{
+        i.quantity = parseInt(i.quantity);
+        return i;
+    });
+    let issues = db.issues.filter(i=>i.admin == mySession.id).map(i=>{
+        i.quantity = parseInt(i.quantity);
+        return i;
+    });
+   
+    let sumInvs = summarizeData(invs);
+    let sumIssues = summarizeData(issues);
+    
+    var summary = sumInvs.map((i=>{
+        let issue = i;
+        let qtty = parseInt(i.quantity);
+        let tx = sumIssues.filter(t=>t.product.id == i.product.id && t.invoice_no == i.invoice_no);
+        console.log("tx: ",tx);
+        if(tx.length > 0){
+            tx.forEach(x=>{
+                console.log("qtty: "+x.quantity,qtty);
+                qtty -= parseInt(x.quantity);
+                console.log("iq: ",qtty);
+             })
+             issue.quantity = qtty;
+        }
+        else{
+            issue.quantity = qtty;
+        }
+        return issue;
+    }))
+    console.log("rep inv: ",summary);
+    var heads=[{text:"Date",align:"text-left"},{text:"Product",align:"text-left"},{text:"Stock (Tsh.)",align:"text-right"},{text:"Value",align:"text-right"},{text:"Invoice",align:"text-left"}];
+            
+    showTransactionList(summary,document.getElementById("report_container"),title,heads);
+}
+
+//show rport
+const showReport = (options)=>{
+    var container = document.getElementById("report_container");
+    let title = "User Report: Transactions";
+    var data = db.transactions;
+    var transactions = data.map(d=>{
+        let nd = d;
+        nd.quantity = parseInt(d.quantity);
+        nd.product_detail = db.products.filter(p=>p.id == d.product)[0];
+        nd.customer_detail = db.customers.filter(c=>c.id == d.customer)[0];
+        return nd;
+    })
+    
+    switch(options.repType.toLowerCase()){
+        case "all sales":
+            title = "User Report: Transactions";
+            break;
+        case "cash sales":
+            title = "User Report: Cash Transactions";
+            transactions = transactions.filter(t=>parseInt(t.type) == 0);
+            break;
+        case "credit sales":
+            console.log("in: ",transactions);
+            title = "User Report: Credit Transactions";
+            transactions = transactions.filter(t=>parseInt(t.type) == 1);
+            console.log("txn: ",transactions);
+            break;
+        case "issues":
+            title = "Report Inventory";
+            showRepInventory(title);
+            break;
+        case "stock":
+            title = "Issued Stock Report";
+            showRepInventory(title);
+            break;
+    }
+    
+    let format = options.repFormat.toLowerCase();
+    let groupBy = options.groupBy.toLowerCase() == 0 ? null:options.groupBy.toLowerCase();
+    switch(format){
+        case "list":
+            var heads=[{text:"Date",align:"text-left"},{text:"Rep's Name",align:"text-left"},{text:"Product",align:"text-left"},{text:"Quantity",align:"text-right"},{text:"Cost (Tsh)",align:"text-right"},{text:"Type",align:"text-left"},{text:"Invoice",align:"text-left"},{text:"Action",align:"text-left"},];
+            if(options.repType.toLowerCase() !== "stock" && options.repType.toLowerCase() != "issues") {
+                if(groupBy != null){
+                    showGroupedTransactionList(summarizeData(transactions,groupBy),container,title,heads,groupBy);
+                }
+                else showTransactionList(summarizeData(transactions,groupBy),container,title,heads);
+            }
+            break;
+        case "pie":
+            if(groupBy == null) showPieChart(transactions,document.getElementById("chart_container"),title);
+            else showPieChart(summarizeData(transactions,groupBy),document.getElementById("chart_container"),title,groupBy);
+            
+            break;
+        case "line":
+            showLineChart(transactions,document.getElementById("chart_container"),title);
+            
+            break;
+    }
+
+}
 //Functions end
 
 const loginForm = document.querySelector("#loginform");
@@ -1124,6 +1626,30 @@ if(window.location.pathname == "/dashboard.html"){
         
         
     }).catch(e=>{console.log(e)})
+
+    fetch("/backend/?tag=transactions&uid="+userId+"&t=0",{
+        method:"GET"
+    }).then(res=>res.json())
+    .then(result=>{
+        console.log("result tx: ",result);
+        db.transactions = result.transactions;
+        storage.setItem("db",JSON.stringify(db));
+        db = JSON.parse(storage.getItem("db"));
+        
+    }).catch(e=>{console.log(e)})
+
+
+    fetch("/backend/?tag=inventory&uid="+userId+"&t=0",{
+        method:"GET"
+    }).then(res=>res.json())
+    .then(result=>{
+        console.log("result iv: ",result);
+        db.inventory = result.inventory;
+        storage.setItem("db",JSON.stringify(db));
+        db = JSON.parse(storage.getItem("db"));
+        
+    }).catch(e=>{console.log(e)})
+
   }
 }
 
@@ -1154,6 +1680,45 @@ if(window.location.pathname == "/reps.html"){
         })
     }
 }
+
+//check if current page is reports.html
+if(window.location.pathname == "/reports.html"){
+    let login = checkLogin();
+    if(login){
+        
+        var userId = mySession.id;
+        var repType= document.getElementById("report_type");
+        var repGroup= document.getElementById("report_group");
+        var repFormat= document.getElementById("report_format");
+        var startDate= document.getElementById("start_date");
+        var endDate= document.getElementById("end_date");
+        const container = document.getElementById("report_container");
+        
+        var options = {repFormat:repFormat.value,repType:repType.value,groupBy:repGroup.value};
+        showReport(options);
+        repType.addEventListener("change",(e)=>{
+            options.repType = e.target.value;
+            showReport(options);
+        })
+        repGroup.addEventListener("change",(e)=>{
+            options.groupBy = e.target.value;
+            showReport(options);
+        })
+        repFormat.addEventListener("change",(e)=>{
+            options.repFormat = e.target.value;
+            showReport(options)
+        })
+        startDate.addEventListener("change",(e)=>{
+            container.textContent = e.target.value;
+        })
+        endDate.addEventListener("change",(e)=>{
+            container.textContent = e.target.value;
+        })
+
+       
+    }
+}
+
 
 //check if current page is suppliers.html
 if(window.location.pathname == "/suppliers.html"){
@@ -1367,8 +1932,9 @@ if(window.location.pathname == "/issue.html"){
                     return invNew;
                 })
             }
+            else inventories = db.inventory;
             inventories.forEach(inv=>{
-                if(inv.quantity > 0) products.push(inv.product);
+                if(parseInt(inv.quantity) > 0) products.push(inv.product);
             })
             products.sort((p1,p2)=>{
                 if(p1.name < p2.name) return -1; else return 1
@@ -1387,11 +1953,11 @@ if(window.location.pathname == "/issue.html"){
                 form.product.options.add(new Option(p.name+" ("+p.pack_size+")",p.id));
             });
         
-            let inventory = inventories.filter(inv=>{
-                return inv.product.id == products[0].id;
-            });
+            // let inventory = inventories.filter(inv=>{
+            //     return inv.product.id == products[0].id;
+            // });
             
-            form.quantity.setAttribute("max",inventory[0].quantity);
+            // form.quantity.setAttribute("max",inventory[0].quantity);
             form.product.addEventListener('change',(e)=>{
                 if(e.target.value != "-1"){
                     let pd = products.filter(p=>{

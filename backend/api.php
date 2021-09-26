@@ -674,7 +674,7 @@ class API{
         return $result;
     }
     public function receiveInventory($product,$supplier,$invoice_no,$invoice,$cif,$clearing,$tpri,$quantity,$selling_price,$buying_price,$admin){
-        $sql = "insert into inventory (product,supplier,invoice_no,cif,clearing,tpri,quantity,selling_price,buying_price,admin) values('".$product."','".$supplier."','".$invoice_no."','".$cif."','".$clearing."','".$tpri."',".$quantity.",'".$selling_price."','".$buying_price."','".$admin."')";
+        $sql = "insert into inventory (product,supplier,invoice_no,cif,clearing,tpri,quantity,selling_price,buying_price,admin,date_created) values('".$product."','".$supplier."','".$invoice_no."','".$cif."','".$clearing."','".$tpri."',".$quantity.",'".$selling_price."','".$buying_price."','".$admin."',".time().")";
         $user = $this->getUserById($admin);
         if(!$user){
             $result['code'] = 1;
@@ -959,9 +959,10 @@ class API{
         return $result;
     }
 
-    public function getTransactions($repId){
+    public function getTransactions($owner,$tag){
         $result = array();
-        $query = $this->con->query("select * from transactions where rep='".$repId."'");
+        $sql = ($tag == 0) ? "select * from transactions": "select * from transactions where rep='".$owner."'";
+        $query = $this->con->query($sql);
             if(!$query){
                 $result['code'] = 1;
                 $result['msg'] = "Could not get transactions";
@@ -972,9 +973,15 @@ class API{
                 $result['msg'] = "Successful";
                 $transactions = array();
                 while($r=$query->fetch_assoc()){
-                    $transactions[] = $r;
+                    $r['rep'] = $this->getRepById($r['rep'])['rep'];
+                    if($tag == 0){
+                        // echo json_encode($r['rep']);
+                        if($r['rep']['admin'] == $owner) $transactions[] = $r;
+                    }
+                    else $transactions[] = $r;
                 }
                 $result['transactions'] = $transactions;
+                
             }
             return $result;
     }

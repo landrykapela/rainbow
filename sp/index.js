@@ -135,8 +135,8 @@ const countryList = [
     "Kazakhstan",
     "Kenya",
     "Kiribati",
-    "Korea (the Democratic People's Republic of)",
-    "Korea (the Republic of)",
+    "Korea",
+    "Korea (North)",
     "Kuwait",
     "Kyrgyzstan",
     "Lao People's Democratic Republic (the)",
@@ -203,7 +203,7 @@ const countryList = [
     "Rwanda",
     "Réunion",
     "Saint Barthélemy",
-    "Saint Helena, Ascension and Tristan da Cunha",
+    "Saint Helena",
     "Saint Kitts and Nevis",
     "Saint Lucia",
     "Saint Martin (French part)",
@@ -224,7 +224,7 @@ const countryList = [
     "Solomon Islands",
     "Somalia",
     "South Africa",
-    "South Georgia and the South Sandwich Islands",
+    "South Georgia ",
     "South Sudan",
     "Spain",
     "Sri Lanka",
@@ -251,13 +251,12 @@ const countryList = [
     "Uganda",
     "Ukraine",
     "United Arab Emirates (the)",
-    "United Kingdom of Great Britain and Northern Ireland (the)",
-    "United States Minor Outlying Islands (the)",
-    "United States of America (the)",
+    "United Kingdom",
+    "United States of America",
     "Uruguay",
     "Uzbekistan",
     "Vanuatu",
-    "Venezuela (Bolivarian Republic of)",
+    "Venezuela",
     "Viet Nam",
     "Virgin Islands (British)",
     "Virgin Islands (U.S.)",
@@ -992,7 +991,7 @@ const showTransactionList = (data,container,title,headRow)=>{
 
             if(!title.includes("Inventory")){
             const invLink = document.createElement("a");
-            invLink.className = "col-md-1 col-lg-1 col-sm-12 text-center";
+            invLink.className = "col-md-1 col-lg-1 col-sm-12 text-left";
 
             if(d.file == null){
                 invLink.textContent = "no data"
@@ -1189,7 +1188,7 @@ const showReport = (options)=>{
     let format = options.repFormat.toLowerCase();
     switch(format){
         case "list":
-            var heads=[{text:"Date",align:"text-left"},{text:"Customer Name",align:"text-left"},{text:"Product",align:"text-left"},{text:"Quantity",align:"text-right"},{text:"Cost",align:"text-right"},{text:"Type",align:"text-left"},{text:"Invoice",align:"text-left"},{text:"Action",align:"text-center"},];
+            var heads=[{text:"Date",align:"text-left"},{text:"Customer Name",align:"text-left"},{text:"Product",align:"text-left"},{text:"Quantity",align:"text-right"},{text:"Cost",align:"text-right"},{text:"Type",align:"text-left"},{text:"Invoice",align:"text-left"},{text:"Action",align:"text-left"},];
             if(options.repType.toLowerCase() !== "inventory") showTransactionList(transactions,container,title,heads);
             break;
         case "pie":

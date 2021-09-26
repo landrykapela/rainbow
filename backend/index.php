@@ -112,7 +112,9 @@ if(isset($_GET['tag'])){
     }
     if(isset($_GET['uid']) && $_GET['tag'] == "transactions"){
         $rid = $_GET['uid'];
-        $result = $api->getTransactions($rid);
+        if(isset($_GET['t'])) $t = 0;
+        else $t =1;
+        $result = $api->getTransactions($rid,$t);
         echo json_encode($result);
     }
 }

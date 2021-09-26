@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Rainbow</title>
+    <meta
+      name="description"
+      content="A platform for importers to manage imports and distribution of imported products and track sales by distributors"
+    />
+    <meta name="author" content="Landry Kapela" />
+    <meta
+      name="keyword"
+      content="platform for importers, manage imports and distribution, track sales, reporting, web application, manage import costs"
+    />
+    <link href="css/main.css" rel="stylesheet" />
+    <link
+      href="bootstrap/bootstrap.min.css"
+      rel="stylesheet"
+      
+    />
+   
+  <link
+    href="https://fonts.googleapis.com/icon?family=Material+Icons"
+    rel="stylesheet"
+  />
+  <link
+    href="js/libs/Chart.min.css"
+    rel="stylesheet"
+  />
+  </head>
+  <body>
+    <header class="bg-curve-primary-up">
+        <span class="material-icons dash" onclick="window.location.href='/dashboard.html'">apps</span>
+        <nav>
+          <a class="nav-item" href="" id="login"></a>
+          <a class="nav-item" href="help.html">Help</a>
+          <span class="nav-item" onclick="signout();">Sign out</span>
+        </nav>
+      </header>
+      <section class="dashboard">
+    <div class="content">
+      
+      <div class="col-md-12 col-lg-12 col-sm-10">
+        <span class="medium-text col-md-12 col-lg-12 col-sm-10 text-center my-2" id="report_title">User Reports</span>
+        <div class="col-md-12 col-lg-12 col-sm-10 row my-3">
+            <div class="col-lg-2 col-md-2 col-sm-10">
+                <label for="report_type">Report Type</label>
+                <select id="report_type" class="form-control">
+                    <option>All Sales</option>
+                    <option>Cash Sales</option>
+                    <option>Credit Sales</option>
+                    <option>Stock</option>
+                    <option>Issues</option>
+                </select>
+            </div>
+            <div class="col-lg-2 col-md-2 col-sm-10">
+              <label for="report_group">Group By</label>
+              <select id="report_group" class="form-control">
+                <option value="0">--select--</option>
+                  <option value="rep">Rep</option>
+                  <option value="product">Product</option>
+                  <option value="invoice_no">Invoice</option>
+                  
+              </select>
+          </div>
+            <div class="col-lg-2 col-md-2 col-sm-10">
+                <label for="report_format">Report Format</label>
+                <select id="report_format" class="form-control">
+                    <option value="list">List</option>
+                    <!-- <option value="line">Line Graph</option> -->
+                    <option value="pie">Pie Chart</option>
+                </select>
+            </div>
+            <div class="col-lg-3 col-md-3 col-sm-10">
+                <label for="start_date">Start Date</label>
+                <input type="date" id="start_date" class="form-control"/>
+                    
+            </div>
+            <div class="col-lg-3 col-md-3 col-sm-10">
+                <label for="end_date">End Date</label>
+                <input type="date" id="end_date" class="form-control"/>
+                    
+            </div>
+        </div>
+        <div class="col-md-12 col-lg-12 col-sm-10" id="report_container">
+          <div class="row col-lg-10 col-md-10 offset-1 my-3">
+            <input id="search_report" name="search_report" class="form-control-sm" placeholder="search"/>
+          </div>
+         
+        </div>
+        <div class="col-md-12 col-lg-12 col-sm-10 hidden" id="chart_container">
+          <canvas id="chart"></canvas>
+        </div>
+      </div>
+    </div>
+    </section>
+    <script src="js/libs/Chart.min.js"></script>
+    <script src="js/libs/lodash.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>

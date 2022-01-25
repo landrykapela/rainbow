@@ -408,8 +408,8 @@ const listProducts = (products)=>{
         const image = document.createElement("img");
 
         itemList.classList.add("item-list");
-        image.src = (p.image) ? "/data/"+p.image : "/img/no_data.svg";
-        image.alt = p.description;
+        image.src = (p.image) ? "/backend/data/"+p.image : "/img/no_data.svg";
+        image.alt = p.name;
         image.classList.add("item-image")
         itemList.appendChild(image);
         area.textContent = p.pack_size;
@@ -728,13 +728,43 @@ const updateRep = (rep)=>{
 }
 
 //save Supplier
-const saveSupplier = (supplier)=>{
-    var suppliers = db.suppliers;
-    supplier.id = randomId(12);
-    suppliers.push(supplier);
-    db.suppliers = suppliers;
-    storage.setItem('db',JSON.stringify(db));
-    window.location.pathname="/suppliers.html";
+const saveSupplier = (supplier,isEdit=false)=>{
+    var formData= new FormData();
+    formData.append("name",supplier.name);
+    formData.append("country",supplier.country);
+    formData.append("phone",supplier.phone);
+    formData.append("address",supplier.address);
+    formData.append("email",supplier.email);
+    formData.append("contact",supplier.contact);
+    formData.append("user_id",supplier.user_id);
+    
+    if(isEdit){
+        formData.append("btnEditSupplier","Edit");
+        formData.append("id",supplier.id);
+    }
+    else{
+        formData.append("btnAddSupplier","Add");
+    }
+    
+    
+    fetch("/backend/?tag=suppliers",{
+        body:formData,method:"POST"
+    }).then(res=>res.json())
+    .then(response=>{
+        if(response.code == 0){
+            db.suppliers = response.suppliers;
+            storage.setItem('db',JSON.stringify(db));
+            window.location.pathname="/suppliers.html";
+        }
+        else{
+            var feedback = document.querySelector("#feedback");
+            feedback.textContent = response.msg;
+            feedback.classList.remove("hidden");
+        }
+    })
+    .catch(e=>{
+        console.log("error: ",e);
+    })
 }
 
 //save Rep
@@ -749,7 +779,7 @@ const saveRep = (rep)=>{
     window.location.pathname="/reps.html";
 }
 //save product
-const saveProduct = (product)=>{
+const saveProduct = (product,isEdit=false)=>{
     console.log("prods: ",product);
     var formData = new FormData();
     formData.append("name",product.name);
@@ -757,7 +787,11 @@ const saveProduct = (product)=>{
     formData.append("pack_size",product.pack_size);
     formData.append("user_id",product.user_id);
     formData.append("image",product.image);
-    formData.append("btnAddProduct","addProduct");
+    if(isEdit){
+        formData.append("id",product.id);
+        formData.append("btnEditProduct","edit");
+    }
+    else formData.append("btnAddProduct","addProduct");
     // console.log("formdata: ",JSON.stringify(formData));
     var options = {
         method:"POST",
@@ -768,12 +802,26 @@ const saveProduct = (product)=>{
     .then(res=>res.json())
     .then(result=>{
         console.log("result: ",result);
+        db.products = result.products;
+        storage.setItem("db",JSON.stringify(db));
+        window.location.pathname="/products.html";
     })
     .catch(err=>{
         console.log("err: ",err);
     })
 }
-
+//check if file exists
+function checkFileExist(urlToFile) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('HEAD', urlToFile, false);
+    xhr.send();
+     
+    if (xhr.status == "404") {
+        return false;
+    } else {
+        return true;
+    }
+}
 //update product
 const updateProduct = (product)=>{
     var products = db.products.map(p=>{
@@ -936,9 +984,9 @@ if(window.location.pathname == "/products.html"){
             storage.setItem("db",JSON.stringify(db));
             db = JSON.parse(storage.getItem("db"));
             if(products.length === 0){
-                simulateLoad(1000,()=>{
-                    window.location.pathname = "/add_product.html";
-                });
+                // simulateLoad(1000,()=>{
+                //     window.location.pathname = "/add_product.html";
+                // });
             }
             else{
                 listProducts(products);
@@ -1164,12 +1212,11 @@ if(window.location.pathname == "/add_supplier.html"){
             let phone = document.getElementById("phone").value;
             let contact_person = document.getElementById("contact").value;
             let email = document.getElementById("email").value;
-            let address = document.getElementById("address").value;
-            
-         
-            let sup = {name:name,country:country,email:email,phone:phone,address:address,contact:contact_person};
-            
-           saveSupplier(sup);
+            let address = document.getElementById("address").value; 
+            var user_id = JSON.parse(session.getItem("session")).id;
+            let sup = {name:name,country:country,email:email,phone:phone,address:address,contact:contact_person,user_id:user_id};
+            console.log("sup: ",sup);
+           saveSupplier(sup,false);
 
         })
     }
@@ -1234,7 +1281,7 @@ if(window.location.pathname == "/add_product.html"){
 
             var userId = JSON.parse(session.getItem("session")).id;
             let prod = {name:name,description:description,pack_size:pack_size,image:file,user_id:userId};
-            saveProduct(prod);
+            saveProduct(prod,false);
         })
     }
 }
@@ -1253,40 +1300,54 @@ if(window.location.pathname == "/edit_product.html"){
         window.location.pathname = "/not_found.html";
     }
     else{
+
+        let prod = product[0];
+        var userId = JSON.parse(session.getItem("session")).id;
+        prod.user_id = userId;
         const form = document.querySelector("#edit_product_form");
         if(form){
             form.name.value = product[0].name;
             form.description.value = product[0].description;
             form.pack_size.value = product[0].pack_size;
-            document.querySelector("#preview").src = product[0].image;
+            const previewImage = document.querySelector("#preview");
+            let image = "backend/data/"+prod.image;
+            if(checkFileExist(image))previewImage.src =  image;
+
+            let fileInput = document.getElementById("image_file");
+               
+                fileInput.addEventListener("change",(e)=>{
+                    let file = e.target.files[0];
+                    if(file){
+                        alert("ok22",prod.user_id);
+                        let reader = new FileReader();
+                        reader.addEventListener('load',()=>{
+                            fileData = reader.result;
+                            prod.image = file;
+                            const url = URL.createObjectURL(file);
+                            previewImage.src = url;
+                            saveProduct(prod,true);
+                        },false);
+                        reader.readAsDataURL(file);
+                    }
+                   
+                })
+                
+            
             form.addEventListener('submit',(event)=>{
                 event.preventDefault();
                 let name = document.getElementById("name").value;
                 let description = document.getElementById("description").value;
                 let pack_size = document.getElementById("pack_size").value;
-                let file = document.getElementById("image_file").files[0];
                 
                 console.log("data: ",name+"/"+description+"/"+pack_size);
-                let fileData = product[0].image;
-                let prod = product[0];
-
+                
                 if(prod.name.toLowerCase() != name.toLowerCase()) prod.name = name;
                 if(prod.description.toLowerCase() != description.toLowerCase()) prod.description = description;
                 if(prod.pack_size != pack_size) prod.pack_size = pack_size;
                 console.log("prod: ",prod);
-                if(file){
-                    let reader = new FileReader();
-                    reader.addEventListener('load',()=>{
-                        fileData = reader.result;
-                        prod.image = fileData;
-                       updateProduct(prod);
-                    },false);
-                    reader.readAsDataURL(file);
-                }
-                else{
-                    console.log("no file");
-                    updateProduct(prod);
-                }
+                
+                    saveProduct(prod,true);
+                
                
             })
         }
@@ -1312,7 +1373,7 @@ if(window.location.pathname == "/product_detail.html"){
                 document.getElementById("name").textContent = product[0].name;
                 document.getElementById("description").textContent = product[0].description;
                 document.getElementById("pack_size").textContent = product[0].pack_size;
-                document.getElementById("preview").src = product[0].image;
+                document.getElementById("preview").src = "backend/data/"+product[0].image;
                 
         }
     }
@@ -1364,7 +1425,7 @@ if(window.location.pathname == "/supplier_detail.html"){
                 document.getElementById("rep_name").textContent = supplier[0].name;
                 document.getElementById("name").textContent = supplier[0].name;
                 document.getElementById("country").textContent = supplier[0].country;
-                document.getElementById("contact").textContent = supplier[0].contact;
+                document.getElementById("contact").textContent = supplier[0].contact_person;
                 document.getElementById("address").textContent = supplier[0].address;
                 document.getElementById("phone").textContent = supplier[0].phone;
                 document.getElementById("email").textContent = supplier[0].email;
@@ -1391,7 +1452,7 @@ if(window.location.pathname == "/edit_supplier.html"){
         const form = document.querySelector("#edit_supplier_form");
         if(form){
             form.name.value = supplier[0].name;
-            form.contact.value = supplier[0].contact;
+            form.contact.value = supplier[0].contact_person;
             form.email.value = supplier[0].email;
             form.phone.value = supplier[0].phone;
             form.address.value = supplier[0].address;
@@ -1414,13 +1475,13 @@ if(window.location.pathname == "/edit_supplier.html"){
                 let sp = supplier[0];
 
                 if(sp.name.toLowerCase() != name.toLowerCase()) sp.name = name;
-                if(sp.contact.toLowerCase() != contact.toLowerCase()) sp.contact = contact;
+                if(sp.contact_person.toLowerCase() != contact.toLowerCase()) sp.contact = contact;
                 if(sp.country.toLowerCase() != country.toLowerCase()) sp.country = country;
                 if(sp.email.toLowerCase() != email.toLowerCase()) sp.email = email;
                 if(sp.phone != phone) sp.phone = phone;
                 if(sp.address.toLowerCase() != address.toLowerCase())sp.address = address;
-                
-                    updateSupplier(sp);
+                sp.user_id = sp.admin;
+                saveSupplier(sp,true);
               
                
             })

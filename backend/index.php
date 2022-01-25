@@ -1,14 +1,32 @@
 <?php
+
+// echo $myvar;
+// echo phpinfo();
+
 ini_set('display_errors',1);
 require_once('api.php');
 
 $api = new API();
 
 if(isset($_GET['tag'])){
-    if(isset($_POST['btnAddProduct'])){
         $data = $_POST;
         $image = $_FILES["image"];
-       $result = $api->createProduct($data['name'],$data['description'],$data['pack_size'],$data['user_id'],$image);
+    if(isset($_POST['btnAddProduct'])){
+        $result = $api->createProduct($data['name'],$data['description'],$data['pack_size'],$data['user_id'],$image);
+        echo json_encode($result);
+    }
+    else if(isset($_POST["btnEditProduct"])){
+        $data['image'] = $image;
+        $result = $api->updateProduct($data);
+        echo json_encode($result);
+    }
+    else if(isset($_POST["btnAddSupplier"])){
+        $result = $api->createSupplier($data['name'],$data['country'],$data['phone'],$data['email'],$data['address'],$data['contact'],$data['user_id']);
+        echo json_encode($result);
+    }
+    else if(isset($_POST["btnEditSupplier"])){
+        $result = $api->updateSupplier($data);
+        $result['input'] = $data;
         echo json_encode($result);
     }
 }

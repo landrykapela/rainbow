@@ -5,6 +5,8 @@ $faint:#9c989852;
 $faintDark:#312f2f;
 $defaultColor: white;
 $defaultColorTrans: rgba(255, 255, 255, 0.534);
+$dangerColor:red;
+$dangerColorTrans:rgba(255, 0, 0, 0.37);
 
 @mixin shade {
   box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
@@ -125,6 +127,7 @@ a.nav-item:hover {
   height:auto;
   padding: 1em;
   @include flex(row, space-evenly, center);
+  flex-wrap: wrap;
 }
 .dashboard :has( > span){
   @include flex(row, space-evenly, flex-start);
@@ -276,6 +279,14 @@ img.image_viewer{
 .error{
   color: red;
   font-size:small;
+}
+.danger{
+  border: 1px solid $dangerColor;
+  @include setBg($dangerColorTrans);
+  text-align: center;
+  width:100%;
+  flex-grow: 3;
+  color:$defaultColor;
 }
 //spinner
 #spinner{

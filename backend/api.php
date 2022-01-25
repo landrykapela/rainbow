@@ -87,7 +87,7 @@ class API{
         $result = array();
         $user = $this->getUserByEmail($email);
 
-        if(!$user){
+        if($user === false){
             $id = $this->generateId(ID_LENGTH);
             $hash = password_hash($password,PASSWORD_BCRYPT);
             $sql = "insert into user (id,fname,lname,email,password) values ('".$id."','".$fname."','".$lname."','".$email."','".$hash."')";
@@ -109,7 +109,7 @@ class API{
         else{
             $result['code'] = 1;
             $result['msg'] = "User already exists, please login";
-            
+            return $result;
         }
         
     }
@@ -130,7 +130,7 @@ class API{
             }
             else{
                 $result['code'] = 0;
-                $result['msg'] =  "Successful";
+                $result['msg'] =  "Successful ".$userId;
                 $products = array();
                 while($row = $query->fetch_assoc()) {
                     $products[] = $row;
@@ -150,7 +150,7 @@ class API{
         else{
             $id = $this->generateId(5);
             if($image != null){
-                $ext = strtolower(pathinfo(UPLOAD_PATH."prodcuts/".basename($image["name"]),PATHINFO_EXTENSION));
+                $ext = strtolower(pathinfo(UPLOAD_PATH.basename($image["name"]),PATHINFO_EXTENSION));
                 $filename = $id .".".$ext;
                 $path = UPLOAD_PATH.$filename;
                 $sql = "insert into products (id,name,description,pack_size,user,image) values ('".$id."','".$name."','".$description."','".$packsize."','".$userId."','".$filename."')";
@@ -165,7 +165,7 @@ class API{
                     $result['msg'] =  "Successful";
                     $result['products'] = $this->getProducts($userId)['products']; 
                
-                    if(move_uploaded_file($filename,$path)){
+                    if(move_uploaded_file($image['tmp_name'],$path)){
                         $result['msg'] = "Image successfully uploaded";
                     }
                     else{
@@ -178,6 +178,134 @@ class API{
                 $result['msg'] =  "No image";
                 $result['products'] = $this->getProducts($user); 
             }
+        }
+        return $result;
+    }
+    public function updateProduct($data){
+        $result = array();
+        $user = $this->getUserById($data['user_id']);
+        $image = $data['image'];
+        if($user === false){
+            $result['code'] = 1;
+            $result['msg'] = "You need  to be logged in to perform this operation";
+            $result['u'] = $data['user_id'];
+        }
+        else{
+            $id = $data['id'];
+            $sql = "update products set ";
+            if($image != null){
+                $ext = strtolower(pathinfo(UPLOAD_PATH.basename($image["name"]),PATHINFO_EXTENSION));
+                $filename = $id .".".$ext;
+                $path = UPLOAD_PATH.$filename;
+                $sql .= "image='".$filename."', ";//(id,name,description,pack_size,user,image) values ('".$id."','".$name."','".$description."','".$packsize."','".$userId."','".$filename."')";
+            }
+            $sql .= "name='".$data['name']."',description='".$data['description']."',pack_size='".$data['pack_size']."' where id='".$id."'";
+            $query = $this->con->query($sql);
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not update product".$this->con->error;
+                
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] =  "Successful";
+                $result['products'] = $this->getProducts($data['user_id'])['products']; 
+            
+                if(move_uploaded_file($data['image']['tmp_name'],$path)){
+                    $result['msg'] = "Image successfully uploaded";
+                }
+                else{
+                    $result['msg'] =  "Could not upload image";
+                }
+            }
+        }
+            
+        return $result;
+    }
+    //create supplier
+    public function createSupplier($name,$country,$phone,$email,$address,$contact,$admin){
+        $result = array();
+        $user = $this->getUserById($admin);
+        if($user === false){
+            $result['code'] = 1;
+            $result['msg'] = "You need  to be logged in to perform this operation";
+        }
+        else{
+            $id = $this->generateId(5);
+           
+                $sql = "insert into suppliers (id,name,country,contact_person,email,phone,address,admin) values 
+                ('".$id."','".$name."','".$country."','".$contact."','".$email."','".$phone."','".$address."','".$admin."')";
+                $query = $this->con->query($sql);
+                if(!$query){
+                    $result['code'] = 1;
+                    $result['msg'] = "Could not create supplier record ".$this->con->error;
+                    
+                }
+                else{
+                    $result['code'] = 0;
+                    $result['msg'] =  "Successful";
+                    $result['suppliers'] = $this->getSuppliers($admin)['suppliers']; 
+               
+                }
+           
+        }
+        return $result;
+    }
+    //list suppliers
+    public function getSuppliers($userId){
+        $result = array();
+        $user = $this->getUserById($userId);
+        if(!$user){
+            $result['code'] = 1;
+            $result['msg'] = "You need  to be logged in to perform this operation";
+        }
+        else{
+            $sql = "select * from suppliers where admin='".$userId."' order by name asc";
+            $query = $this->con->query($sql);
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not get supplier list for user";
+                
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] =  "Successful ".$userId;
+                $suppliers = array();
+                while($row = $query->fetch_assoc()) {
+                    $suppliers[] = $row;
+                }
+                $result['suppliers'] = $suppliers; 
+            }
+        }
+        return $result;
+    }
+    //update supplier
+    public function updateSupplier($data){
+        $result = array();
+        $user = $this->getUserById($data['user_id']);
+        if($user === false){
+            $result['code'] = 1;
+            $result['msg'] = "You need  to be logged in to perform this operation";
+            $result['user'] = $data['user_id']; 
+        }
+        else{
+            $id = $data['id'];          
+                $sql = "update suppliers set name ='".$data['name']."',country='".$data['country']."',contact_person='".$data['contact']."',email='".$data['email']."',phone='".$data['phone']."',address='".$data['address']."'
+                WHERE id='".$id."' AND admin='".$data['user_id']."'"; 
+                
+                $query = $this->con->query($sql);
+                if(!$query){
+                    $result['code'] = 1;
+                    $result['msg'] = "Could not update supplier record ".$this->con->error;
+                    
+                }
+                else{
+                    $result['code'] = 0;
+                    $result['msg'] =  "Successful";
+                    $result['suppliers'] = $this->getSuppliers($data['user_id'])['suppliers']; 
+               
+                }
+           
         }
         return $result;
     }

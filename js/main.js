@@ -1,6 +1,8 @@
 
 const storage = window.localStorage;
 const session = window.sessionStorage;
+const ADMIN = 0;
+const NORMAL = 1;
 const countryList = [
     "Afghanistan",
     "Åland Islands",
@@ -330,11 +332,10 @@ const generateRandomData = (count)=>{
 }
 const generateChart = ()=>{
     let chartArea = document.getElementById("chart-area");
-    while(chartArea.hasChildNodes()){
-        chartArea.removeChild(chartArea.childNodes[0]);
-    }
+    Array.from(chartArea.children).forEach(c=>chartArea.removeChild(c));
     const canvas = document.createElement("canvas");
-    // canvas.getContext("2d");
+    // canvas.width = "400px";
+    // canvas.height= "400px";
     chartArea.appendChild(canvas);
     
     const labels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -344,8 +345,8 @@ const generateChart = ()=>{
             {
             label: 'Sales',
             data: generateRandomData(NUMBER_CFG.count),
-            borderColor: "#cc9900",
-            backgroundColor: "#045e13",
+            borderColor: "#fa8e01",
+            backgroundColor: "#fa8e00",
             },
             
         ]
@@ -364,7 +365,7 @@ const generateChart = ()=>{
           }
         },
     }
-    return new Chart(config,canvas);
+    return new Chart(canvas,config);
     
 }
 
@@ -466,10 +467,10 @@ const listReps = (reps)=>{
 
         const profile = document.createElement("img");
         itemList.classList.add("item-list");
-        profile.src = rep.profile;
+        profile.src = "/backend/data/"+rep.avatar;
         profile.classList.add("item-image");
         area.textContent = rep.service_area;
-        title.textContent = rep.first_name+" "+rep.last_name;
+        title.textContent = rep.fname+" "+rep.lname;
         title.classList.add("item-title");
         area.classList.add("item-focus");
         itemData.classList.add("item-data");
@@ -621,6 +622,23 @@ const randomId = (strength)=>{
    }
    return result;
 }
+//load data
+const fetchData =(user)=>{
+    fetch("/backend/?uid="+user.id+"&level="+user.level,{
+        method:"GET"
+    }).then(res=>res.json())
+    .then(result=>{
+        console.log("result: ",result);
+        db.products = result.products['products'];
+        db.suppliers = result.suppliers['suppliers'];
+        db.reps = result.reps['reps'];
+        storage.setItem("db",JSON.stringify(db));
+        db = JSON.parse(storage.getItem("db"));
+        // listProducts(products);
+        
+    }).catch(e=>{console.log(e)})
+    
+}
 //confirm delete
 const confirmDelete = (itemType,itemId)=>{
     let message = "Are you sure you want to delete this "+itemType+"?";
@@ -768,15 +786,45 @@ const saveSupplier = (supplier,isEdit=false)=>{
 }
 
 //save Rep
-const saveRep = (rep)=>{
-    var reps= db.reps;
-    rep.id = randomId(12);
-    db.users.push({id:rep.id,email:rep.email,password:rep.password});
-    delete rep.password;
-    reps.push(rep);
-    db.reps = reps;
-    storage.setItem('db',JSON.stringify(db));
-    window.location.pathname="/reps.html";
+const saveRep = (rep,isEdit=false)=>{
+    var formData = new FormData();
+    formData.append("fname",rep.fname);
+    formData.append("lname",rep.lname);
+    formData.append("email",rep.email);
+    formData.append("phone",rep.phone);
+    formData.append("service_area",rep.service_area);
+    formData.append("admin",rep.admin);
+    formData.append("password",rep.password);
+    formData.append("image",rep.avatar);
+    if(isEdit){
+        formData.append("id",rep.id);
+        formData.append("btnEditRep","Edit");
+    }
+    else{
+        formData.append("btnAddRep","Add");
+    }
+    var feedback = document.querySelector("#feedback");
+                
+    fetch("/backend/?tag=rep",{method:"POST",body:formData})
+    .then(res=>res.json())
+    .then(result=>{
+        console.log("result: ",result);
+        if(result.code == 0){
+            db.reps = result.reps;
+            storage.setItem('db',JSON.stringify(db));
+            window.location.pathname="/reps.html";
+        }
+        else{
+            feedback.textContent = result.msg;
+            feedback.classList.remove("hidden");
+        }
+    })
+    .catch(e=>{
+        console.log("error: ",e);
+        feedback.textContent = "Something went wrong";
+        feedback.classList.remove("hidden");
+    })
+    
 }
 //save product
 const saveProduct = (product,isEdit=false)=>{
@@ -858,8 +906,9 @@ if(loginForm){
                 feedback.classList.remove("hidden");
             }
             else{
-                session.setItem("session",JSON.stringify(result.user));
-                window.location.pathname = "/dashboard.html";
+                let user = result.user;
+                session.setItem("session",JSON.stringify(user));
+                window.location.pathname = user.level == ADMIN ? "/dashboard.html":"/sp/";
             }
         })
         .catch(e=>{
@@ -923,7 +972,11 @@ if(signupForm){
 //check if dashboard is loaded
 if(window.location.pathname == "/dashboard.html"){
   var login = checkLogin();
-//   if(login) generateChart();
+  if(login) {
+      let user = JSON.parse(session.getItem("session"));
+      fetchData(user);
+      generateChart();
+  }
 }
 
 
@@ -931,7 +984,7 @@ if(window.location.pathname == "/dashboard.html"){
 if(window.location.pathname == "/reps.html"){
     let login = checkLogin();
     if(login){
-        let reps = db.reps;
+        let reps = (db.reps)? db.reps: [];
         if(reps.length === 0){
             simulateLoad(1000,()=>{
                 window.location.pathname = "/add_rep.html";
@@ -939,7 +992,7 @@ if(window.location.pathname == "/reps.html"){
             
         }
         else{
-           
+            // fetch("/backend/?")
            simulateLoad(1000,()=>{
                listReps(reps);
            });
@@ -972,27 +1025,7 @@ if(window.location.pathname == "/products.html"){
     let login = checkLogin();
     if(login){
         showHideSpinner(1);
-        var userId = JSON.parse(session.getItem("session")).id;
-        fetch("/backend/?uid="+userId,{
-            method:"GET"
-        }).then(res=>res.json())
-        .then(result=>{
-            showHideSpinner(0);
-            let products = result.products;
-            console.log("result: ",result);
-            db.products = products;
-            storage.setItem("db",JSON.stringify(db));
-            db = JSON.parse(storage.getItem("db"));
-            if(products.length === 0){
-                // simulateLoad(1000,()=>{
-                //     window.location.pathname = "/add_product.html";
-                // });
-            }
-            else{
-                listProducts(products);
-            }
-        }).catch(e=>{console.log(e)})
-        
+        listProducts(db.products);
     }
 }
 
@@ -1231,7 +1264,20 @@ if(window.location.pathname == "/add_rep.html"){
     const form = document.querySelector("#new_rep_form");
     if(form){
         
-        let reps = db.reps;
+        var fileInput = document.getElementById("profile_image");
+        fileInput.addEventListener("change",(e)=>{
+            file = e.target.files[0];
+            if(file){
+                let reader = new FileReader();
+                reader.addEventListener('load',()=>{
+                    fileData = reader.result;
+                    document.getElementById("rep_preview").src=URL.createObjectURL(file);
+                
+                },false);
+            reader.readAsDataURL(file);
+        }
+        })
+        
         form.addEventListener('submit',(event)=>{
             event.preventDefault();
             let fname = document.getElementById("fname").value;
@@ -1240,25 +1286,11 @@ if(window.location.pathname == "/add_rep.html"){
             let service_area = document.getElementById("service_area").value;
             let email = document.getElementById("email").value;
             let password = document.getElementById("password").value;
-            
-            let file = document.getElementById("profile_image").files[0];
-
-            let fileData = null;
-            let rep = {profile:fileData,first_name:fname,last_name:lname,email:email,phone:phone,service_area:service_area,password:password};
-            
-            if(file){
-                let reader = new FileReader();
-                reader.addEventListener('load',()=>{
-                    fileData = reader.result;
-                    rep.profile = fileData;
-                    saveRep(rep);
-                },false);
-                reader.readAsDataURL(file);
-            }
-            else{
-                console.log("no file");
-                saveRep(rep);
-            }
+            let file = fileInput.files[0];
+            let admin = JSON.parse(session.getItem("session")).id;
+            let rep = {avatar:file,fname:fname,lname:lname,email:email,phone:phone,service_area:service_area,password:password,admin:admin};
+           
+            saveRep(rep,false);
 
         })
     }
@@ -1394,16 +1426,14 @@ if(window.location.pathname == "/rep_detail.html"){
         window.location.pathname = "/not_found.html";
     }
     else{
-                document.getElementById("rep_name").textContent = rep[0].first_name + " "+rep[0].last_name;
-                document.getElementById("fname").textContent = rep[0].first_name;
-                document.getElementById("lname").textContent = rep[0].last_name;
+                document.getElementById("rep_name").textContent = rep[0].fname + " "+rep[0].lname;
+                document.getElementById("fname").textContent = rep[0].fname;
+                document.getElementById("lname").textContent = rep[0].lname;
                 document.getElementById("area").textContent = rep[0].service_area;
                 document.getElementById("phone").textContent = rep[0].phone;
                 document.getElementById("email").textContent = rep[0].email;
                 document.getElementById("report_link").href = "rep_report.html?rid="+rep[0].id;
-                // document.getElementById("edit_link").href = "edit_rep.html?rid="+rep[0].id;
-                // document.getElementById("del_link").href = "edit_rep.html?rid="+rep[0].id;
-                document.getElementById("preview").src = rep[0].profile;
+                document.getElementById("preview").src = "/backend/data/"+rep[0].avatar;
                 
         }
     }

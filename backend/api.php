@@ -203,7 +203,7 @@ class API{
             $query = $this->con->query($sql);
             if(!$query){
                 $result['code'] = 1;
-                $result['msg'] = "Could not update product".$this->con->error;
+                $result['msg'] = "Could not update product";
                 
             }
             else{
@@ -306,6 +306,118 @@ class API{
                
                 }
            
+        }
+        return $result;
+    }
+    //create rep
+    public function createRep($fname,$lname,$email,$password,$phone,$area,$admin,$avatar){
+        $result = array();
+        $user = $this->getUserById($admin);
+        if($user === false){
+            $result['code'] = 1;
+            $result['msg'] = "You need  to be logged in to perform this operation";
+        }
+        else{
+            $id = $this->generateId(5);
+            if($avatar != null){
+                $ext = strtolower(pathinfo(UPLOAD_PATH.basename($avatar["name"]),PATHINFO_EXTENSION));
+                $filename = $id .".".$ext;
+                $path = UPLOAD_PATH.$filename;
+                
+                $sql = "insert into reps (id,fname,lname,email,phone,service_area,admin,avatar) values 
+                ('".$id."','".$fname."','".$lname."','".$email."','".$phone."','".$area."','".$admin."','".$filename."')";
+                $query = $this->con->query($sql);
+                if(!$query){
+                    $result['code'] = 1;
+                    $result['msg'] = "Could not create rep record ";
+                
+                }
+                else{
+                    $uid = $this->generateId(ID_LENGTH);
+                    $hash = password_hash($password,PASSWORD_BCRYPT);
+                    $sql2 = "insert into user (id,fname,lname,email,password,level) values('".$uid."','".$fname."','".$lname."','".$email."','".$hash."',1)";
+                    $q = $this->con->query($sql2);
+                    if($q){
+                        $result['code'] = 0;
+                        $result['msg'] =  "Successful";
+                        if(move_uploaded_file($avatar['tmp_name'],$path)){
+                            $result['msg'] = "Image successfully uploaded";
+                        }
+                        else{
+                            $result['msg'] =  "Could not upload image";
+                        } 
+                    }
+                    else{
+                        $this->con->query("delete from reps where id='".$id."'");
+                        $result['code'] = 1;
+                        $result['msg'] =  "Sorry, could not create rep ".$email;
+                    }
+
+                    $result['reps'] = $this->getReps($admin)['reps']; 
+                }
+               
+            }
+            else{
+                $sql = "insert into reps (id,fname,lname,email,phone,service_area,admin,avatar) values 
+                ('".$id."','".$fname."','".$lname."','".$email."','".$phone."','".$area."','".$admin."','".$filename."')";
+                $query = $this->con->query($sql);
+                if(!$query){
+                    $result['code'] = 1;
+                    $result['msg'] = "Could not create rep record ";
+                
+                }
+                else{
+                    $uid = $this->generateId(ID_LENGTH);
+                    $hash = password_hash($password,PASSWORD_BCRYPT);
+                    $sql2 = "insert into user (id,fname,lname,email,password,level) values('".$uid."','".$fname."','".$lname."','".$email."','".$hash."',1)";
+                    $q = $this->con->query($sql2);
+                    if($q){
+                        $result['code'] = 0;
+                        $result['msg'] =  "Successful";
+                        if(move_uploaded_file($avatar['tmp_name'],$path)){
+                            $result['msg'] = "Image successfully uploaded";
+                        }
+                        else{
+                            $result['msg'] =  "Could not upload image";
+                        } 
+                    }
+                    else{
+                        $this->con->query("delete from reps where id='".$id."'");
+                        $result['code'] = 1;
+                        $result['msg'] =  "Sorry, could not create rep ".$email;
+                    }
+
+                    $result['reps'] = $this->getReps($admin)['reps']; 
+                }
+            }
+        }
+        return $result;
+    }
+    //get reps
+    public function getReps($userId){
+        $result = array();
+        $user = $this->getUserById($userId);
+        if(!$user){
+            $result['code'] = 1;
+            $result['msg'] = "You need  to be logged in to perform this operation";
+        }
+        else{
+            $sql = "select * from reps where admin='".$userId."' order by fname asc";
+            $query = $this->con->query($sql);
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not get reps list for user";
+                
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] =  "Successful ";
+                $reps = array();
+                while($row = $query->fetch_assoc()) {
+                    $reps[] = $row;
+                }
+                $result['reps'] = sizeof($reps)>0 ? $reps:array(); 
+            }
         }
         return $result;
     }

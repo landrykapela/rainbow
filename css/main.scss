@@ -184,9 +184,9 @@ a.nav-item:hover {
   color:$secondaryColor;
 }
 .details {
-  width:100%;
-  @include flex(row, space-between, center);
-  max-width: 480px;
+  width:40%;
+  @include flex(row, flex-start, center);
+  // max-width: 480px;
 }
 .details-list{
   width: 100%;
@@ -200,9 +200,13 @@ a.nav-item:hover {
 }
 .graph {
   @include flex(column, center, center);
+  // background-color: red;
+  // border:2px solid blue;
+  width: 50% !important;
+  // height: 400px !important;
 }
-.graph > img {
-  width: 420px;
+.graph > canvas {
+  width: 100%;
   height: auto;
 }
 img.image_viewer{
@@ -246,8 +250,8 @@ img.image_viewer{
   @include flex(column, center, center);
   padding: 1em;
   color: $primaryColor;
-  width: 150px;
-  height: 150px;
+  width: 130px;
+  height: 120px;
   margin: 2em auto;
   cursor: pointer;
   border:1px solid $primaryColor;

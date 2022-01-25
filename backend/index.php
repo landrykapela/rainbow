@@ -26,13 +26,19 @@ if(isset($_GET['tag'])){
     }
     else if(isset($_POST["btnEditSupplier"])){
         $result = $api->updateSupplier($data);
-        $result['input'] = $data;
+        echo json_encode($result);
+    }
+    else if(isset($_POST["btnAddRep"])){
+        $result = $api->createRep($data['fname'],$data['lname'],$data['email'],$data['password'],$data['phone'],$data['service_area'],$data['admin'],$image);
         echo json_encode($result);
     }
 }
 else if(isset($_GET['uid'])){
     $userId = $_GET['uid'];
-    $result = $api->getProducts($userId);
+    $result['products'] = $api->getProducts($userId);
+    $result['reps'] = $api->getReps($userId);
+    $result['suppliers'] = $api->getSuppliers($userId);
+    // $result['products'] = $api->getProducts($userId);
     echo json_encode($result);
 }
 else{

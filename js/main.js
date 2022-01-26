@@ -369,7 +369,14 @@ const generateChart = ()=>{
     
 }
 
-
+const signout=()=>{
+    if(confirm("Are you sure you want to sign out?")){
+        session.clear();
+        storage.clear();
+        window.location.pathname = "/";
+    }
+    
+}
 //check login 
 const checkLogin = ()=>{
     let u = session.getItem("session");
@@ -578,10 +585,10 @@ const showInventorySummary = ()=>{
         summaryContainer.appendChild(p);
     }
     else{
-        if(db.transactions.length > 0){
+        if(db.issues.length > 0){
             inventories = db.inventory.map(inv=>{
                 let invNew = inv;
-                db.transactions.forEach(tx=>{
+                db.issues.forEach(tx=>{
                     if(tx.invoice_no === inv.invoice_no && inv.product.id == tx.product.id){
                         invNew.quantity -= tx.quantity;
                     }
@@ -632,6 +639,8 @@ const fetchData =(user)=>{
         db.products = result.products['products'];
         db.suppliers = result.suppliers['suppliers'];
         db.reps = result.reps['reps'];
+        db.inventory = result.inventory['inventory'];
+        db.transactions = result.transactions['transactions'];
         storage.setItem("db",JSON.stringify(db));
         db = JSON.parse(storage.getItem("db"));
         // listProducts(products);
@@ -691,23 +700,98 @@ const confirmDelete = (itemType,itemId)=>{
 }
 
 //save transaction
-const saveTransaction=(transaction)=>{
-    transaction.id = randomId(12);
-    let transactions = db.transactions;
-    transactions.push(transaction);
-    db.transactions = transactions;
-    storage.setItem("db",JSON.stringify(db));
-    window.location.pathname = "/inventory.html";
+
+//save transaction
+const saveIssue=(issue)=>{
+    var formData = new FormData();
+    formData.append("product",issue.product);
+    formData.append("rep",issue.rep);
+    formData.append("invoice_no",issue.invoice_no);
+    formData.append("quantity",issue.quantity);
+    formData.append("price",issue.price);
+    formData.append("amount",issue.amount);
+    formData.append("admin",issue.admin);
+    formData.append("btnIssueInventory","IssueInventory");
+   
+    
+    var options = {
+        method:"POST",
+        body:formData,
+        
+    }
+    fetch("/backend/?tag=issues",options)
+    .then(res=>res.json())
+    .then(result=>{
+        console.log("result: ",result);
+        if(result.code == 0){
+            db.issues = result.issues;
+            storage.setItem("db",JSON.stringify(db));
+            window.location.pathname="/inventory.html";
+        }
+        else showFeedback(result.code,result.msg);
+        
+    })
+    .catch(err=>{
+        console.log("err: ",err);
+        showFeedback(1,"Something went wrong! Please try again later");
+    })
 }
 
+//show feedback
+const showFeedback = (tag,msg)=>{
+    var holder = document.getElementById("feedback");
+    holder.classList.remove("hidden");
+    if(tag == 0) holder.classList.add("alert-success");
+    else holder.classList.add("alert-danger");
+    holder.textContent = msg;
+}
 //save inventory
-const saveInventory = (inv)=>{
-    inv.id = randomId(12);
-    let inventory = db.inventory;
-    inventory.push(inv);
-    db.inventory = inventory;
-    storage.setItem("db",JSON.stringify(db));
-    window.location.pathname = "/inventory.html";
+const saveInventory = (inv,option=null)=>{
+    
+    var formData = new FormData();
+    if(option == null){
+        formData.append("product",inv.product);
+        formData.append("supplier",inv.supplier);
+        formData.append("invoice_no",inv.invoice_no);
+        formData.append("invoice",inv.invoice);
+        formData.append("cif",inv.cif);
+        formData.append("clearing",inv.clearing);
+        formData.append("tpri",inv.tpri);
+        formData.append("quantity",inv.quantity);
+        formData.append("selling_price",inv.selling_price);
+        formData.append("buying_price",inv.buying_price);
+        formData.append("admin",inv.admin);
+        formData.append("btnReceiveInventory","ReceiveInventory");
+    }
+    else{
+        Object.keys(option).forEach((key,i)=>{
+            formData.append(key,Object.values(inv)[i]);
+        });
+        formData.append("id",inv.id);
+        formData.append("btnUpdateInventory","updateInventory");
+    }
+    
+    var options = {
+        method:"POST",
+        body:formData,
+        
+    }
+    fetch("/backend/?tag=inventory",options)
+    .then(res=>res.json())
+    .then(result=>{
+        console.log("result: ",result);
+        if(result.code == 0){
+            db.inventory = result.inventory;
+            storage.setItem("db",JSON.stringify(db));
+            window.location.pathname="/inventory.html";
+        }
+        else showFeedback(result.code,result.msg);
+        
+    })
+    .catch(err=>{
+        console.log("err: ",err);
+        showFeedback(1,"Something went wrong! Please try again later");
+    })
 }
 //update supplier
 const updateSupplier = (supplier)=>{
@@ -1077,7 +1161,6 @@ if(window.location.pathname == "/receive.html"){
                 let quantity = (form.quantity.value && form.quantity.value > 0) ? parseInt(form.quantity.value) : 1;
 
                 let price = (cif + tpri + clearing)/quantity;
-                console.log("check: ",quantity+"/"+tpri+"/"+clearing+"/"+cif+"/"+price);
                 form.buying_price.value = price;
             });
             form.clearing.addEventListener('input',(e)=>{
@@ -1087,7 +1170,6 @@ if(window.location.pathname == "/receive.html"){
                 let quantity = (form.quantity.value && form.quantity.value > 0) ? parseInt(form.quantity.value) : 1;
 
                 let price = (cif + tpri + clearing)/quantity;
-                console.log("check: ",quantity+"/"+tpri+"/"+clearing+"/"+cif+"/"+price);
                 form.buying_price.value = price;
             });
             form.quantity.addEventListener('input',(e)=>{
@@ -1096,19 +1178,18 @@ if(window.location.pathname == "/receive.html"){
                 let clearing = (form.clearing.value) ? parseFloat(form.clearing.value) : 0;
                 let cif = (form.cif.value ) ? parseFloat(form.cif.value) : 0;
                 let price = (cif + tpri + clearing)/quantity;
-                console.log("check: ",quantity+"/"+tpri+"/"+clearing+"/"+cif+"/"+price);
                 form.buying_price.value = price;
             });
+            let file = form.invoice_file.files[0];
+            form.invoice_file.addEventListener("change",(e)=>{
+                if(e.target.files[0]){
+                    file = e.target.files[0];
+                }
+            })
             form.addEventListener('submit',(e)=>{
                 e.preventDefault();
                 let productId = form.product[form.product.options.selectedIndex].value;
                 let supplierId = form.supplier[form.supplier.options.selectedIndex].value;
-                let product = db.products.filter(p=>{
-                    return p.id === productId;
-                });
-                let supplier = db.suppliers.filter(s=>{
-                    return s.id === supplierId;
-                })
                 
                 let quantity = parseInt(form.quantity.value);
                 let invoice_no = form.invoice.value;
@@ -1117,22 +1198,10 @@ if(window.location.pathname == "/receive.html"){
                 let clearing = parseFloat(form.clearing.value);
                 let b_price = parseFloat(form.buying_price.value);
                 let s_price =parseFloat(form.selling_price.value);
-                let file = form.invoice_file.files[0];
-                let invoice_file = null;
-                let inventory = {product:product[0],supplier:supplier[0],invoice_no:invoice_no,quantity:quantity,cif:cif,tpri:tpri,clearing:clearing,buying_price:b_price,selling_price:s_price,invoice:invoice_file};
+                let admin = JSON.parse(session.getItem("session")).id;
+                let inventory = {admin:admin,product:productId,supplier:supplierId,invoice_no:invoice_no,quantity:quantity,cif:cif,tpri:tpri,clearing:clearing,buying_price:b_price,selling_price:s_price,invoice:file};
 
-                if(file){
-                    var reader = new FileReader();
-                    reader.addEventListener('load',()=>{
-                        invoice_file = reader.result;
-                        inventory.invoice = invoice_file;
-                        saveInventory(inventory);
-                    },false);
-                    reader.readAsDataURL(file)
-                }
-                else{
-                    saveInventory(inventory);
-                }
+                saveInventory(inventory);
 
             })
     }
@@ -1199,7 +1268,7 @@ if(window.location.pathname == "/issue.html"){
                 
             });
             db.reps.forEach(rep=>{
-                form.rep.options.add(new Option(rep.first_name+" "+rep.last_name,rep.id));
+                form.rep.options.add(new Option(rep.fname+" "+rep.lname,rep.id));
             })
         
         
@@ -1219,8 +1288,9 @@ if(window.location.pathname == "/issue.html"){
                 return inv.invoice_no == invoice_no && inv.product.id == productId;
             });
             let amount = inv[0].selling_price * quantity;
-            let transaction = {rep:repId,rep_name:rep[0].first_name+" "+rep[0].last_name,product:product[0],invoice_no:invoice_no,quantity:quantity,amount:amount};
-            saveTransaction(transaction);
+            let price = amount / quantity;
+            let transaction = {rep:repId,price:price,product:productId,invoice_no:invoice_no,quantity:quantity,amount:amount,admin:JSON.parse(session.getItem("session")).id};
+            saveIssue(transaction);
         })
     }
 }
@@ -1370,8 +1440,6 @@ if(window.location.pathname == "/edit_product.html"){
                 let name = document.getElementById("name").value;
                 let description = document.getElementById("description").value;
                 let pack_size = document.getElementById("pack_size").value;
-                
-                console.log("data: ",name+"/"+description+"/"+pack_size);
                 
                 if(prod.name.toLowerCase() != name.toLowerCase()) prod.name = name;
                 if(prod.description.toLowerCase() != description.toLowerCase()) prod.description = description;

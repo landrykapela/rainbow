@@ -15,21 +15,38 @@ if(isset($_GET['tag'])){
         $result = $api->createProduct($data['name'],$data['description'],$data['pack_size'],$data['user_id'],$image);
         echo json_encode($result);
     }
-    else if(isset($_POST["btnEditProduct"])){
+    if(isset($_POST["btnEditProduct"])){
         $data['image'] = $image;
         $result = $api->updateProduct($data);
         echo json_encode($result);
     }
-    else if(isset($_POST["btnAddSupplier"])){
+    if(isset($_POST["btnAddSupplier"])){
         $result = $api->createSupplier($data['name'],$data['country'],$data['phone'],$data['email'],$data['address'],$data['contact'],$data['user_id']);
         echo json_encode($result);
     }
-    else if(isset($_POST["btnEditSupplier"])){
+    if(isset($_POST["btnEditSupplier"])){
         $result = $api->updateSupplier($data);
         echo json_encode($result);
     }
-    else if(isset($_POST["btnAddRep"])){
+    if(isset($_POST["btnAddRep"])){
         $result = $api->createRep($data['fname'],$data['lname'],$data['email'],$data['password'],$data['phone'],$data['service_area'],$data['admin'],$image);
+        echo json_encode($result);
+    }
+    if(isset($_POST['btnReceiveInventory'])){
+        $data['invoice'] = $_FILES['invoice'];
+        $result = $api->receiveInventory($data['product'],$data['supplier'],$data['invoice_no'],$data['invoice'],$data['cif'],$data['clearing'],$data['tpri'],$data['quantity'],$data['selling_price'],$data['buying_price'],$data['admin']);
+        echo json_encode($result);
+    }
+    if(isset($_POST['btnIssueInventory'])){
+        $data = $_POST;
+        $result = $api->issueInventory($data['product'],$data['rep'],$data['invoice_no'],$data['amount'],$data['quantity'],$data['price'],$data['admin']);
+        echo json_encode($result);
+    }
+    if(isset($_POST['btnTransaction'])){
+        $data = $_POST;
+        unset($data['btnTransaction']);
+        $data['file'] = $_FILES['file'];
+        $result = $api->saveTransaction($data);
         echo json_encode($result);
     }
 }
@@ -38,7 +55,8 @@ else if(isset($_GET['uid'])){
     $result['products'] = $api->getProducts($userId);
     $result['reps'] = $api->getReps($userId);
     $result['suppliers'] = $api->getSuppliers($userId);
-    // $result['products'] = $api->getProducts($userId);
+    $result['inventory'] = $api->getInventory($userId);
+    $result['issues'] = $api->getIssues($userId);
     echo json_encode($result);
 }
 else{

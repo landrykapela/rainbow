@@ -140,6 +140,23 @@ class API{
         }
         return $result;
     }
+    public function getProduct($productId){
+        $result = array();
+        $sql = "select * from products where id='".$productId."' order by name asc limit 1";
+        $query = $this->con->query($sql);
+        if(!$query){
+            $result['code'] = 1;
+            $result['msg'] = "Could not get product detail";
+            $result['product'] = null;
+        }
+        else{
+            $result['code'] = 0;
+            $result['msg'] =  "Successful ";
+            $result['product'] = $query->fetch_assoc();
+        }
+        
+        return $result;
+    }
     public function createProduct($name,$description,$packsize,$userId,$image){
         $result = array();
         $user = $this->getUserById($userId);
@@ -248,6 +265,23 @@ class API{
                
                 }
            
+        }
+        return $result;
+    }
+    public function getSupplierById($sid){
+        $result = array();
+        $query = $this->con->query("select * from suppliers where id='".$sid."'");
+        if(!$query){
+            $result['code'] = 1;
+            $result['msg'] = "Could not get supplier";
+            $result['error'] = $this->con->error;
+            $result['supplier'] = null;
+        }
+        else{
+            $result['code'] = 0;
+            $result['msg'] = "Successful";
+            $supplier = $query->fetch_assoc();
+            $result['supplier'] = $supplier;
         }
         return $result;
     }
@@ -421,6 +455,449 @@ class API{
         }
         return $result;
     }
+    public function getRep($userId,$repId){
+        $result = array();
+        $user = $this->getUserById($userId);
+        if(!$user){
+            $result['code'] = 1;
+            $result['msg'] = "Could not find user";
+            $result['error'] = $this->con->error;
+            $result['rep'] = null;
+        }
+        else{
+            $query = $this->con->query("select u.id as uid,u.password,r.* from user as u inner join reps as r on u.email=r.email where r.admin='".$userId."' and r.id='".$repId."'");
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not get reps";
+                $result['error'] = $this->con->error;
+                $result['rep'] = null;
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "Successful ".$repId;
+                $rep = $query->fetch_assoc();
+                $result['rep'] = $rep;
+            }
+        }
+        return $result;
+    }
+    public function getRepById($repId){
+        $result = array();
+        $query = $this->con->query("select u.id as uid,u.password,u.level,r.* from user as u inner join reps as r on u.email=r.email where r.id='".$repId."'");
+        if(!$query){
+            $result['code'] = 1;
+            $result['msg'] = "Could not get rep";
+            $result['error'] = $this->con->error;
+            $result['rep'] = null;
+        }
+        else{
+            $result['code'] = 0;
+            $result['msg'] = "Successful";
+            $rep = $query->fetch_assoc();
+            $result['rep'] = $rep;
+        }
+        return $result;
+    }
+    public function getRepByEmail($email){
+        $result = array();
+        $query = $this->con->query("select u.id as uid,u.level,r.* from user as u inner join reps as r on u.email=r.email where r.email='".$email."'");
+        if(!$query){
+            $result['code'] = 1;
+            $result['msg'] = "Could not get rep";
+            $result['error'] = $this->con->error;
+            $result['rep'] = null;
+        }
+        else{
+            $result['code'] = 0;
+            $result['msg'] = "Successful";
+            $rep = $query->fetch_assoc();
+            $result['rep'] = $rep;
+        }
+        return $result;
+    }
+    public function deleteRep($rid,$userId){
+        $this->con->autocommit(false);
+        $result = array();
+        $rep = $this->getRepById($rid);
+        if($rep['rep'] == null){
+            $result['code'] = 1;
+            $result['msg'] = "Invalid rep";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            $sql = "delete from user where id='".$rep['rep']['uid']."'";
+            $query = $this->con->query($sql);
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not delete rep";
+                $result['error'] = $this->con->error;
+            }
+            else{
+                $query2 = $this->con->query("delete from reps where id='".$rid."'");
+                if(!$query2){
+                    $this->con->rollback();
+                    $result['code'] = 1;
+                    $result['msg'] = "Could not delete rep";
+                    $result['error'] = $this->con->error;
+                }
+                else{
+                    if($this->con->commit()){
+                        $result['code'] = 0;
+                        $result['msg'] = "Successful ";
+                        $result['reps'] = $this->getReps($userId)['reps'];
+                    }
+                    else{
+                        $result['code'] = 1;
+                        $result['msg'] = "Could not save changes";
+                        $result['reps'] = $this->getReps($userId)['reps'];
+                    }
+                }
+            }
+        }
+        $this->con->close();
+        // echo json_encode($result);
+        return $result;
+    }
+    public function sameInventory($userId,$invoiceNo,$product){
+     
+        $query = $this->con->query("select * from inventory where admin='".$userId."' and invoice_no='".$invoiceNo."' and product='".$product."'");
+        if(!$query) return false;
+        else{
+            
+            $invoices = array();
+            while($r=$query->fetch_assoc()){
+                if(isset($r['product'])) $r['product'] = $this->getProduct($r['product'])['product'];
+                if(isset($r['supplier'])) $r['supplier'] = $this->getSupplierById($r['supplier'])['supplier'];
+                $invoices[] = $r;
+            }
+            if(sizeof($invoices) > 0) return true;
+        }
+       
+    }
+    public function receiveInventory($product,$supplier,$invoice_no,$invoice,$cif,$clearing,$tpri,$quantity,$selling_price,$buying_price,$admin){
+        $result = array();
+        $sql = "insert into inventory (product,supplier,invoice_no,cif,clearing,tpri,quantity,selling_price,buying_price,admin,date_created) values('".$product."','".$supplier."','".$invoice_no."','".$cif."','".$clearing."','".$tpri."',".$quantity.",'".$selling_price."','".$buying_price."','".$admin."',".time().")";
+        
+        $user = $this->getUserById($admin);
+        if(!$user){
+            $result['code'] = 1;
+            $result['msg'] = "You need to login";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            if($this->sameInventory($admin,$invoice_no,$product)){
+                $result['code'] = 1;
+                $result['msg'] = "This seems to be a duplicate. Verify that you are entering correct information";
+                $result['error'] = "";
+            }
+            else{
+                $query = $this->con->query($sql);
+                if(!$query){
+                    $result['code'] = 1;
+                    $result['msg'] = "Could not create inventory record";
+                    $result['error']= $this->con->error;
+                }
+                else{
+                    $msg = "Successful";
+                    if($invoice != null){
+                        
+                        $ext = strtolower(pathinfo(UPLOAD_PATH.basename($invoice["name"]),PATHINFO_EXTENSION));
+                        $filename = $invoice_no.".".$ext;
+                        $path = UPLOAD_PATH.$filename;
+        
+                        $sql = "update inventory set invoice='".$filename."' where invoice_no='".$invoice_no."'";
+                        if($this->con->query($sql)) {
+                            move_uploaded_file($invoice['tmp_name'],$path);
+                            $msg = "Invoice file successfully saved!";
+                        }
+                        $result['code'] = 0;
+                        $result['msg'] = $msg;
+                        $result['inventory'] = $this->getInventory($admin)['inventory'];
+                    }
+                }  
+            }
+        }
+        return $result;
+    }
+    public function issueInventory($product,$rep,$invoice_no,$amount,$quantity,$price,$admin){
+        $sql = "insert into issues (product,rep,invoice_no,amount,quantity,price,admin,date_created) values('".$product."','".$rep."','".$invoice_no."','".$amount."',".$quantity.",'".$price."','".$admin."',".time().")";
+        $user = $this->getUserById($admin);
+        if(!$user){
+            $result['code'] = 1;
+            $result['msg'] = "Could not find user";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            $query = $this->con->query($sql);
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not issue inventory";
+                $result['error']= $this->con->error;
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "Successful";
+                $result['issues'] = $this->getIssues($admin)['issues'];
+            }
+        }
+        return $result;
+    }
+    public function getInventory($userId){
+        $result = array();
+        $user = $this->getUserById($userId);
+        if(!$user){
+            $result['code'] = 1;
+            $result['msg'] = "Could not find user";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            $query = $this->con->query("select * from inventory where admin='".$userId."'");
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not get inventory";
+                $result['error'] = $this->con->error;
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "Successful";
+                $inventory = array();
+                while($r=$query->fetch_assoc()){
+                    if(isset($r['product'])) $r['product'] = $this->getProduct($r['product'])['product'];
+                    if(isset($r['supplier'])) $r['supplier'] = $this->getSupplierById($r['supplier'])['supplier'];
+                    $inventory[] = $r;
+                }
+                $result['inventory'] = $inventory;
+            }
+        }
+        return $result;
+    }
+    public function getIssues($userId){
+        $result = array();
+        $user = $this->getUserById($userId);
+        if(!$user){
+            $result['code'] = 1;
+            $result['msg'] = "Could not find user";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            $sql = "select * from issues where admin='".$userId."'";
+            if($user['user']['level'] == "1") $sql = "select * from issues where rep='".$user['user']['id']."'";
+            $query = $this->con->query($sql);
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not get inventory ";
+                $result['error'] = $this->con->error;
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "Successful";
+                $issues = array();
+                while($r=$query->fetch_assoc()){
+                    if(isset($r['product'])) $r['product'] = $this->getProduct($r['product'])['product'];
+                    if(isset($r['rep'])) $r['rep'] = $this->getRepById($r['rep'])['rep'];
+                    $issues[] = $r;
+                }
+                $result['issues'] = $issues;
+            }
+        }
+        return $result;
+    }
+    public function getCustomers($userId){
+        $result = array();
+        $user = $this->getUserById($userId);
+        if(!$user){
+            $result['code'] = 1;
+            $result['msg'] = "Could not find user";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            $query = $this->con->query("select * from customers where rep='".$userId."'");
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not get customer";
+                $result['error'] = $this->con->error;
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "Successful";
+                $customers = array();
+                while($r=$query->fetch_assoc()){
+                    $customers[] = $r;
+                }
+                $result['customers'] = $customers;
+            }
+        }
+        return $result; 
+    }
+    public function createCustomer($userId,$data){
+        
+        $result = array();
+        $user = $this->getUserById($userId);
+        if(!$user){
+            $result['code'] = 1;
+            $result['msg'] = "Could not find user";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            $id = $this->generateId(12);
+            $data['id'] = $id;
+            $sql = "insert into customers (";
+            for($i=0;$i<sizeof(array_keys($data));$i++){
+                $sql .= array_keys($data)[$i].", ";
+            }
+            $sql .= "date_created) values (";
+            for($i=0;$i<sizeof(array_values($data));$i++){
+                $sql .= "'".array_values($data)[$i]."', ";
+            }
+            $sql .= time().")";
+            $query = $this->con->query($sql);
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not create customer";
+                $result['error'] = $this->con->error;
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "Successful";
+                $result['customers'] = $this->getCustomers($userId)['customers'];
+            }
+        }
+        return $result; 
+    }
+    public function updateCustomer($cid,$data){
+        
+        $result = array();
+        $user = $this->getUserById($data['rep']);
+        if(!$user){
+            $result['code'] = 1;
+            $result['msg'] = "Could not find user";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            if(sizeof(array_keys($data)) > 0){
+                $sql = "update customers set ";
+                for($i=0;$i<sizeof(array_keys($data));$i++){
+                    $sql .= array_keys($data)[$i]."= '".array_values($data)[$i]."'";
+                    if($i < sizeof(array_values($data)) -1) $sql .=", ";
+                }
+               
+                $sql .= " where id='".$cid."'";
+                $query = $this->con->query($sql);
+                if(!$query){
+                    $result['code'] = 1;
+                    $result['msg'] = "Could not update customer";
+                    $result['error'] = $this->con->error;
+                }
+                else{
+                    $result['code'] = 0;
+                    $result['msg'] = "Successful";
+                    $result['customers'] = $this->getCustomers($data['rep'])['customers'];
+                }
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "There is nothing to update";
+                $result['customers'] = $this->getCustomers($data['rep'])['customers'];
+            }
+            
+        }
+        return $result; 
+    }
+    public function deleteCustomer($cid,$rep){
+        $result = array();
+        $user = $this->getUserById($rep);
+        if(!$user){
+            $result['code'] = 1;
+            $result['msg'] = "Could not find user";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            $sql = "delete from customers where id='".$cid."' and rep='".$rep."'";
+            $query = $this->con->query($sql);
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not delete customer";
+                $result['error'] = $this->con->error;
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "Successful";
+                $result['customers'] = $this->getCustomers($rep)['customers'];
+            }
+            
+        }
+        return $result; 
+    }
+    public function saveTransaction($data){
+        $result = array();
+        $id = $this->generateId(16);
+        $file = $data['file'];
+        // $result['d'] = $data;
+        unset($data['file']);
+        $sql = "insert into transactions (id,";
+        for($i=0;$i<sizeof(array_keys($data));$i++){
+            $sql .= array_keys($data)[$i].", ";
+        }
+        if($file != null) $sql .= "file, ";
+        $sql .= "date_created) values ('".$id."',";
+
+        for($i=0;$i<sizeof(array_values($data));$i++){
+            if(gettype(array_values($data)[$i]) == "string") $sql .= "'".array_values($data)[$i]."',";
+            else $sql .= array_values($data)[$i].",";
+        }
+        if($file != null){
+            $ext = strtolower(pathinfo(UPLOAD_PATH.basename($file["name"]),PATHINFO_EXTENSION));
+            $filename = $id.".".$ext;
+            if($this->saveImage($file,$filename)){
+                $sql .= "'".$filename."',";
+            }
+            else{
+                $sql .= null.",";
+            }
+        }
+        $sql .= time().")";
+        $query = $this->con->query($sql);
+        if(!$query){
+            $result['code'] = 1;
+            $result['msg'] = "Could not record transaction";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            $result['code'] = 0;
+            $result['msg'] = "Success";
+            $result['transactions'] = $this->getTransactions($data['rep'],1)['transactions'];
+        }
+        
+        return $result;
+    }
+
+    public function getTransactions($owner,$tag){
+        $result = array();
+        $sql = ($tag == 0) ? "select * from transactions": "select * from transactions where rep='".$owner."'";
+        $query = $this->con->query($sql);
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not get transactions";
+                $result['error'] = $this->con->error;
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "Successful";
+                $transactions = array();
+                while($r=$query->fetch_assoc()){
+                    $r['rep'] = $this->getRepById($r['rep'])['rep'];
+                    if($tag == 0){
+                        // echo json_encode($r['rep']);
+                        if($r['rep']['admin'] == $owner) $transactions[] = $r;
+                    }
+                    else $transactions[] = $r;
+                }
+                $result['transactions'] = $transactions;
+                
+            }
+            return $result;
+    }
+    
 }
 
 

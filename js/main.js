@@ -452,7 +452,7 @@ const listProducts = (products)=>{
         const image = document.createElement("img");
 
         itemList.classList.add("item-list");
-        image.src = (p.image) ? "/backend/data/"+p.image : "/img/no_data.svg";
+        image.src = (p.image) ? "backend/data/"+p.image : "img/no_data.svg";
         image.alt = p.name;
         image.classList.add("item-image")
         itemList.appendChild(image);

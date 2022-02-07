@@ -4,7 +4,7 @@ const session = window.sessionStorage;
 
 const signout = ()=>{
     if(confirm("Are you sure you want to sign out?")){
-        window.localStorage.clear();
+        storage.clear();
         session.clear();
         var urlObj = new URL(window.location.href);
         Array.from(urlObj.searchParams.keys()).forEach(key=>urlObj.searchParams.delete(key));
@@ -345,22 +345,36 @@ const generateRandomData = (count)=>{
 }
 const generateChart = ()=>{
     let chartArea = document.getElementById("chart-area");
-    while(chartArea.hasChildNodes()){
-        chartArea.removeChild(chartArea.childNodes[0]);
-    }
+    Array.from(chartArea.children).forEach(c=>chartArea.removeChild(c));
     const canvas = document.createElement("canvas");
-    // canvas.getContext("2d");
+    // canvas.width = "400px";
+    // canvas.height= "400px";
     chartArea.appendChild(canvas);
     
     const labels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    var trans = db.transactions.map(t=>{
+        let x = t;
+        let d = new Date(parseInt(t.date_created)*1000);
+        x.month = d.getMonth();
+        x.cost = parseInt(t.cost);
+        return x;
+    })
+    var group = _.groupBy(trans,d=>d.month);
+    console.log("mong: ",group);
+    var content = labels.map(l=>0);
+    var keys = Object.keys(group);
+    Object.values(group).forEach((f,i)=>{
+        let p = (f.map(d=>d.cost).reduce((a,b)=>a+b));
+        content[keys[i]]=(p/1000000).toFixed(1);
+    });
     let data = {
         labels: labels,
         datasets: [
             {
-            label: 'Sales',
-            data: generateRandomData(NUMBER_CFG.count),
+            label: 'Sales in Millions Tsh',
+            data: content,
             borderColor: "#045e13",
-            backgroundColor:"#045e13" ,
+            backgroundColor: "#045e13",
             },
             
         ]
@@ -376,8 +390,27 @@ const generateChart = ()=>{
               display: true,
               text: 'Annual Sales'
             }
+          },
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: 'Month'
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: 'Sales'
+              },
+              ticks: {
+                min:0,
+                stepSize: 0.1
+              }
+            }
           }
         },
+        
     }
     return new Chart(canvas,config);
     
@@ -467,7 +500,7 @@ const randomId = (strength)=>{
 const confirmDelete = (itemType,itemId)=>{
     let message = "Are you sure you want to delete this "+itemType+"?";
     let return_page ="/sp/";
-    var userId =mySession.uid;
+    var userId =mySession.id;
     var options = {
         body:JSON.stringify({type:itemType,user_id:userId,id:itemId,btnDelete:"delete"}),
         method:"POST",headers:{'Content-type':'application/json'}
@@ -601,6 +634,7 @@ const saveTransaction=(transaction)=>{
     formData.append("customer",transaction.customer);
     formData.append("price",transaction.price);
     formData.append("type",transaction.type);
+    formData.append("admin",mySession.detail.admin);
     if(transaction.file) formData.append("file",transaction.file);
     formData.append("btnTransaction","transaction");
    
@@ -617,6 +651,7 @@ const saveTransaction=(transaction)=>{
         if(result.code == 0){
             db.transactions = result.transactions;
             storage.setItem("db",JSON.stringify(db));
+            
             window.location.pathname="/sp/";
         }
         else showFeedback(result.code,result.msg);
@@ -909,7 +944,130 @@ const listCustomers = (customers)=>{
 
     })
 }
+const showGroupedTransactionList = (data,container,title,headRow,groupBy)=>{
+    container.classList.remove("hidden");
+    document.getElementById("chart_container").classList.add("hidden");
+    var repTitle = document.getElementById("report_title");
+    repTitle.textContent = title;
+    Array.from(container.children).forEach((c,i)=>{if(i>0)container.removeChild(c);});
+    const search = document.getElementById("search_report");
+    
+    var heading = document.createElement("div");
+    heading.id = "heading";
+    heading.className = "row col-lg-12 col-md-12 my-2 bg-secondary";
+    headRow.forEach(head=>{
+        const item = document.createElement("span");
+        item.className = (head.align.includes("right") || head.text.toLowerCase().includes("action") || head.text.toLowerCase().includes("date") || head.text.toLowerCase().includes("type")) ? "col-md-1 col-lg-1 col-sm-12 bold" :"col-md-2 col-lg-2 col-sm-12 bold";
+        item.classList.add(head.align);
+        if(head.text.includes("Cost") || head.text.includes("date")) item.className = "col-md-2 col-lg-2 col-sm-12 bold text-right";
+        item.textContent = head.text;
+        heading.appendChild(item);
+    })
+    container.appendChild(heading);
+    var keys = Object.keys(data);
+    var values = Object.values(data);
+    console.log("keys: ",values);
+    if(keys && keys.length > 0){
+        keys.forEach((key,i)=>{
+            const hRow = document.createElement("div");
+            hRow.className = "row my-2 px-1 col-lg-12 col-md-12 list_item bg-success";
+            var title;
+            var head;
+            switch(groupBy){
+                case "rep":
+                    head = db.reps.filter(r=>r.id == key)[0];
+                    title = head.fname + " "+head.lname;
+                    break;
+                case "product":
+                    head = db.products.filter(p=>p.id == key)[0];
+                    title = head.name+" - "+head.pack_size;
+                    break;
+                case "invoice_no":
+                    title = key;
+                    break;
+
+            }
+            hRow.textContent = title;
+            container.appendChild(hRow);
+            values[i].forEach((d,k)=>{
+                const row = document.createElement("div");
+                row.className ="row my-2 col-lg-12 col-md-12 list_item";
+                if(k%2==0) row.classList.add("bg-light");
+    
+                const dateSpan = document.createElement("span");
+                dateSpan.className = "col-md-1 col-lg-1 col-sm-12";
+                var date = new Date(parseInt(d.date_created)*1000);
+                dateSpan.textContent = date.getDate()+"/"+(date.getMonth()+1)+"/"+date.getFullYear();
+                row.appendChild(dateSpan);
+    
+                if(!title.includes("Inventory")){
+                    const custSpan = document.createElement("span");
+                    custSpan.className = "col-md-2 col-lg-2 col-sm-12";
+                    custSpan.textContent = d.rep.fname+" "+d.rep.lname;
+                    row.appendChild(custSpan);
+                }
+                
+                const productSpan = document.createElement("span");
+                productSpan.className = "col-md-2 col-lg-2 col-sm-12";
+                var product = (!title.includes("Inventory")) ? d.product_detail : d.product;
+                productSpan.textContent = product.name+"("+product.pack_size+")";
+                row.appendChild(productSpan);
+        
+                const qttySpan = document.createElement("span");
+                qttySpan.className = "col-md-1 col-lg-1 col-sm-12 text-right";
+                qttySpan.textContent = d.quantity;
+                row.appendChild(qttySpan);
+        
+                const costSpan = document.createElement("span");
+                costSpan.className = "col-md-2 col-lg-2 col-sm-12 text-right";
+                costSpan.textContent = (title.includes("Inventory")) ? thousandSeparator(d.selling_price * d.quantity) : thousandSeparator(d.quantity * d.price);
+                row.appendChild(costSpan);
+                if(!title.includes("Inventory")){
+                const typeSpan = document.createElement("span");
+                typeSpan.className = "col-md-1 col-lg-1 col-sm-12";
+                var type = (d.type == 0) ? "Cash" : "Credit";
+                typeSpan.textContent = type;
+                row.appendChild(typeSpan); 
+                }
+                const invSpan = document.createElement("span");
+                invSpan.className = "col-md-2 col-lg-2 col-sm-12";
+                invSpan.textContent = d.invoice_no;
+                row.appendChild(invSpan);
+    
+                if(!title.includes("Inventory")){
+                const invLink = document.createElement("a");
+                invLink.className = "col-md-1 col-lg-1 col-sm-12 text-left";
+    
+                if(d.file == null){
+                    invLink.textContent = "no data"
+                }
+                else{
+                    invLink.target = "_blank";
+                    invLink.href = "/data/"+d.file;
+                    invLink.textContent = "view"
+                }
+                row.appendChild(invLink);
+            }
+                container.appendChild(row);
+            })
+           
+        })
+    }
+    else{
+        const row = document.createElement("div");
+            row.className ="row my-2 col-lg-12 col-md-12 list_item";
+        const noSpan = document.createElement("span");
+            noSpan.className = "col-md-12 col-lg-12 col-sm-12 text-center";
+            noSpan.textContent = "No data";
+            row.appendChild(noSpan);
+            
+            container.appendChild(row);
+    }
+   
+}
+
 const showTransactionList = (data,container,title,headRow)=>{
+    console.log("t1_",data);
     container.classList.remove("hidden");
     document.getElementById("chart_container").classList.add("hidden");
     var repTitle = document.getElementById("report_title");
@@ -944,7 +1102,7 @@ const showTransactionList = (data,container,title,headRow)=>{
     container.appendChild(heading);
     if(data && data.length > 0){
         data.forEach((d,i)=>{
-            
+            console.log("t1",d);
             const row = document.createElement("div");
             row.className ="row my-2 col-lg-12 col-md-12 list_item";
             if(i%2==0) row.classList.add("bg-light");
@@ -975,7 +1133,7 @@ const showTransactionList = (data,container,title,headRow)=>{
     
             const costSpan = document.createElement("span");
             costSpan.className = "col-md-1 col-lg-1 col-sm-12 text-right";
-            costSpan.textContent = (title.includes("Inventory")) ? thousandSeparator(d.price * d.quantity) : thousandSeparator(d.cost);
+            costSpan.textContent = "Tsh. "+(title.includes("Inventory")) ? thousandSeparator(d.price * d.quantity) : thousandSeparator(d.cost);
             row.appendChild(costSpan);
             if(!title.includes("Inventory")){
             const typeSpan = document.createElement("span");
@@ -998,7 +1156,7 @@ const showTransactionList = (data,container,title,headRow)=>{
             }
             else{
                 invLink.target = "_blank";
-                invLink.href = "/data/"+d.file;
+                invLink.href = "/backend/data/"+d.file;
                 invLink.textContent = "view"
             }
             row.appendChild(invLink);
@@ -1057,38 +1215,56 @@ const showLineChart = (data,container,title)=>{
    
 }
 const showPieChart = (data,container,title)=>{
+    console.log("tag: ",data);
     document.getElementById("report_container").classList.add("hidden");
     container.classList.remove("hidden");
     while(container.hasChildNodes()){
         container.removeChild(container.childNodes[0]);
     }
-    var cash = 0;
-    data.filter(d=>d.type == 0).forEach(d=>cash += parseInt(d.cost));
-    var credit = 0;
-    data.filter(d=>d.type == 1).forEach(d=>credit += parseInt(d.cost));
-    var all = 0;
-    data.forEach(d=>all +=parseInt(d.cost));
+    
+    var content = [];
+    var xar = _.groupBy(data.map(d=>{
+        let x = {name:d.product_detail.name+"("+d.product_detail.pack_size+")",quantity:parseInt(d.cost)};
+        return x;
+    }),p=>p.name)
+    console.log("xar: ",xar);
+    var labels = Object.keys(xar);
+    console.log("xarv: ",Object.values(xar));
+    Object.values(xar).forEach(f=>{
+        let q = f.map(f=>f.quantity).reduce((a,b)=>a+b);
+        content.push(q);
+    });
+    
+    console.log("cont: ",content);
     var ctx = document.createElement("canvas");
     container.appendChild(ctx);
     ctx.width = 400;
     const mydata = {
-        labels: [
-          'Cash Sales',
-          'Credit Sales',
-          'All Sales'
-        ],
+        labels: labels,
         datasets: [{
           label:title,
-          data: [cash,credit,all],
+          data: content,
           backgroundColor: [
             'rgb(255, 99, 132)',
             'rgb(54, 162, 235)',
-            'rgb(255, 205, 86)'
           ],
           hoverOffset: 4
         }]
       };
-   var options = {
+    
+    if(title.toLowerCase().includes("inventory")){
+        var content = data.map(d=>(d.quantity));
+        console.log("cont: ",content);
+        var colors = data.map(d=>'#'+Math.floor(Math.random()*16777215).toString(16));
+        mydata.labels = labels;
+        mydata.datasets= [{
+            label:title,
+            data: content,      
+            backgroundColor:colors,      
+            hoverOffset: 4
+          }]
+    }
+    var options = {
         type:'pie',
         data:mydata,
     }
@@ -1119,11 +1295,11 @@ const summarizeData = (txData,type)=>{
     return data;
 }
 const showRepInventory = (transactions,title)=>{
-    let issues = db.issues.filter(i=>i.rep.uid == mySession.uid).map(i=>{
+    let issues = db.issues.filter(i=>i.rep.uid == mySession.id).map(i=>{
         i.quantity = parseInt(i.quantity);
         return i;
     });
-    // var transactions = db.transactions.filter(i=>i.rep.uid == mySession.uid);
+    // var transactions = db.transactions.filter(i=>i.rep.uid == mySession.id);
     console.log("issues: ",issues);
     let data = summarizeData(issues,"issues");
     // console.log("issuesss: ",data);
@@ -1160,10 +1336,24 @@ const showReport = (options)=>{
     var transactions = data.map(d=>{
         let nd = d;
         nd.quantity = parseInt(d.quantity);
-        nd.product_detail = db.products.filter(p=>p.id == d.product)[0];
-        nd.customer_detail = db.customers.filter(c=>c.id == d.customer)[0];
         return nd;
     })
+    let period = options.period;
+    if(period.end && period.start && period.end < period.start){
+        let start = period.start;
+        period.start = period.end;
+        period.end = start;
+    }
+    let transactionsNew = transactions;
+    if(period.start && period.end){
+        transactions = transactionsNew.filter(t=>t.date_created >= period.start/1000 && t.date_created <= period.end/1000)
+    }
+    else if(period.start){
+        transactions = transactionsNew.filter(t=>t.date_created >= period.start/1000);
+    }
+    else if(period.end){
+        transactions = transactionsNew.filter(t=>t.date_created <= period.end/1000);
+    }
     switch(options.repType.toLowerCase()){
         case "all sales":
             title = "User Report: Transactions";
@@ -1189,6 +1379,7 @@ const showReport = (options)=>{
     switch(format){
         case "list":
             var heads=[{text:"Date",align:"text-left"},{text:"Customer Name",align:"text-left"},{text:"Product",align:"text-left"},{text:"Quantity",align:"text-right"},{text:"Cost",align:"text-right"},{text:"Type",align:"text-left"},{text:"Invoice",align:"text-left"},{text:"Action",align:"text-left"},];
+            console.log("txn list: ",transactions);
             if(options.repType.toLowerCase() !== "inventory") showTransactionList(transactions,container,title,heads);
             break;
         case "pie":
@@ -1290,31 +1481,22 @@ if(signupForm){
 if(window.location.pathname == "/sp/"){
   var login = checkLogin();
   if(login){
-    var userId = mySession.uid;
+    var userId = mySession.detail.id;
     generateChart();
-    fetch("/backend/?tag=products&uid="+userId,{
-        method:"GET"
-    }).then(res=>res.json())
-    .then(result=>{
-        let products = result.products;
-        console.log("result: ",result);
-        db.products = products;
-        storage.setItem("db",JSON.stringify(db));
-        db = JSON.parse(storage.getItem("db"));
-    }).catch(e=>{console.log(e)});
     
-    fetch("/backend/?tag=issues&uid="+userId,{
+    
+    fetch("/backend/?tag=issues&uid="+mySession.detail.admin,{
         method:"GET"
     }).then(res=>res.json())
-    .then(result=>{
+    .then(result=>{ 
         console.log("rs: ",result);
-        db.issues = result.issues;
+        db.issues = result.issues.filter(i=>i.rep.uid == mySession.id);
         storage.setItem("db",JSON.stringify(db));
         db = JSON.parse(storage.getItem("db"));
         
     }).catch(e=>{console.log(e)})
     
-    fetch("/backend/?tag=transactions&uid="+mySession.id,{
+    fetch("/backend/?tag=transactions&uid="+userId,{
         method:"GET"
     }).then(res=>res.json())
     .then(result=>{
@@ -1325,7 +1507,7 @@ if(window.location.pathname == "/sp/"){
         
     }).catch(e=>{console.log(e)})
 
-    fetch("/backend/?tag=customers&uid="+userId,{
+    fetch("/backend/?tag=customers&uid="+mySession.id,{
         method:"GET"
     }).then(res=>res.json())
     .then(result=>{
@@ -1346,7 +1528,7 @@ if(window.location.pathname == "/sp/sale.html"){
         var invoiceEl = document.getElementById("invoice");
         var priceEl = document.getElementById("price");
         var amountEl = document.getElementById("amount");
-        var myCustomers = db.customers.filter(c=>c.rep == mySession.uid);
+        var myCustomers = db.customers.filter(c=>c.rep == mySession.id);
         const customerEl = document.getElementById("customer");
         Array.from(customerEl.children).forEach((c,i)=>{
             if(i>0) customerEl.removeChild(c);
@@ -1355,7 +1537,7 @@ if(window.location.pathname == "/sp/sale.html"){
             customerEl.options.add(new Option(c.name,c.id));
         })
 
-        var myProducts = db.products.filter(p=>p.user == mySession.admin);
+        var myProducts = db.issues.map(i=>i.product);
         const productEl = document.getElementById("product");
         Array.from(productEl.children).forEach((c,i)=>{
             if(i>0) productEl.removeChild(c);
@@ -1437,7 +1619,7 @@ if(window.location.pathname == "/sp/sale.html"){
                 let amount = price * quantity;
 
                 let transaction = {type:type,customer:customer,product:product,invoice_no:invoice,quantity:quantity,price:price,amount:amount};
-                transaction.rep = mySession.id;
+                transaction.rep = mySession.detail.id;
                 if(fileInput.files[0]){
                     transaction.file = fileInput.files[0];
                 }
@@ -1456,7 +1638,7 @@ if(window.location.pathname == "/sp/sale.html"){
 if(window.location.pathname == "/sp/customers.html"){
     let login = checkLogin();
     if(login){
-        var userId = mySession.uid;
+        var userId = mySession.id;
         fetch("/backend/?tag=customers&uid="+userId,{
             method:"GET"
         }).then(res=>res.json())
@@ -1484,13 +1666,16 @@ if(window.location.pathname == "/sp/reports.html"){
     let login = checkLogin();
     if(login){
         
-        var userId = mySession.uid;
+        var userId = mySession.id;
         var repType= document.getElementById("report_type");
         var repFormat= document.getElementById("report_format");
         var startDate= document.getElementById("start_date");
         var endDate= document.getElementById("end_date");
-        const container = document.getElementById("report_container");
-        var options = {repFormat:repFormat.value,repType:repType.options[repType.options.selectedIndex].value};
+        let period={start:false,end:false};
+        if(startDate.value) period.start = parseInt(Date.parse(startDate.value));
+        if(endDate.value) period.end = parseInt(Date.parse(endDate.value));
+        
+        var options = {period:period,repFormat:repFormat.value,repType:repType.options[repType.options.selectedIndex].value};
         showReport(options);
         repType.addEventListener("change",(e)=>{
             options.repType = e.target.value;
@@ -1501,17 +1686,34 @@ if(window.location.pathname == "/sp/reports.html"){
             showReport(options)
         })
         startDate.addEventListener("change",(e)=>{
-            container.textContent = e.target.value;
+            options.period.start = parseInt(Date.parse(e.target.value+" 00:00:00"));
+            showReport(options);
         })
         endDate.addEventListener("change",(e)=>{
-            container.textContent = e.target.value;
+            options.period.end = parseInt(Date.parse(e.target.value+" 23:59:59"));
+            showReport(options);
         })
 
        
     }
 }
 
-
+//settings
+if(window.location.pathname == "/sp/settings.html"){
+    let login = checkLogin();
+    if(login){
+        var userForm = document.getElementById("user_detail_form");
+        var user = mySession;
+        userForm.fname.value = user.fname;
+        userForm.lname.value = user.lname;
+        userForm.email.value = user.email;
+        userForm.phone.value = user.detail.phone;
+        userForm.service_area.value = user.detail.service_area;
+        userForm.password = user.password;
+        var avatar = document.getElementById("avatar_image");
+        if(user.detail.avatar) avatar.src = "../backend/data/"+user.detail.avatar;
+    }
+}
 //check if current page is issue.html
 if(window.location.pathname == "/issue.html"){
     let login = checkLogin();
@@ -1596,7 +1798,7 @@ if(window.location.pathname == "/issue.html"){
             });
             let amount = inv[0].selling_price * quantity;
             let issue = {rep:repId,rep_name:repName,product:productId,invoice_no:invoice_no,quantity:quantity,amount:amount};
-            let userId = mySession.uid;
+            let userId = mySession.id;
             issue.admin = userId;
             saveIssue(issue);
         })
@@ -1618,7 +1820,7 @@ if(window.location.pathname == "/sp/add_customer.html"){
             let phone = document.getElementById("phone").value;
             let email = document.getElementById("email").value;
             
-            let user_id = mySession.uid;
+            let user_id = mySession.id;
             let customer = {name:name,address:address,email:email,phone:phone,rep:user_id};
             saveCustomer(customer);
 

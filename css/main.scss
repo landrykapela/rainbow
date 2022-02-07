@@ -69,7 +69,7 @@ header > nav > a.nav-item{
   width: 100%;
   margin: 0 auto;
   padding:0;
-  @include flex(row, space-between, center);
+  @include flex(row, space-between, flex-start);
 }
 .content .logo {
   @include flex(column, center, center);

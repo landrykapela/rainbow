@@ -38,6 +38,7 @@ class API{
                 $result['code'] = 0;
                 $result['msg'] = "Successful";
                 unset($user['password']);
+                if($user['level'] == 1) $user['detail'] = $this->getRepByEmail($user['email'])['rep'];
                 $result['user'] = $user;
                 
             }
@@ -494,6 +495,7 @@ class API{
             $result['code'] = 0;
             $result['msg'] = "Successful";
             $rep = $query->fetch_assoc();
+            unset($rep['password']);
             $result['rep'] = $rep;
         }
         return $result;
@@ -511,6 +513,7 @@ class API{
             $result['code'] = 0;
             $result['msg'] = "Successful";
             $rep = $query->fetch_assoc();
+            unset($rep['password']);
             $result['rep'] = $rep;
         }
         return $result;
@@ -702,6 +705,27 @@ class API{
         }
         return $result;
     }
+    public function getCustomer($id){
+        $result = array();
+        $user = $this->getUserById($userId);
+        
+        $query = $this->con->query("select * from customers where id='".$id."' limit 1");
+        if(!$query){
+            $result['code'] = 1;
+            $result['msg'] = "Could not get customer";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            $result['code'] = 0;
+            $result['msg'] = "Successful";
+            $customer = null;
+            while($r=$query->fetch_assoc()){
+                $customer = $r;
+            }
+            $result['customer'] = $customer;
+        }     
+        return $result; 
+    }
     public function getCustomers($userId){
         $result = array();
         $user = $this->getUserById($userId);
@@ -848,11 +872,11 @@ class API{
         if($file != null){
             $ext = strtolower(pathinfo(UPLOAD_PATH.basename($file["name"]),PATHINFO_EXTENSION));
             $filename = $id.".".$ext;
-            if($this->saveImage($file,$filename)){
+            if(move_uploaded_file($file['tmp_name'],UPLOAD_PATH.$filename)){
                 $sql .= "'".$filename."',";
             }
             else{
-                $sql .= null.",";
+                $sql .= "NULL,";
             }
         }
         $sql .= time().")";
@@ -873,24 +897,22 @@ class API{
 
     public function getTransactions($owner,$tag){
         $result = array();
-        $sql = ($tag == 0) ? "select * from transactions": "select * from transactions where rep='".$owner."'";
+        $sql = ($tag == 0) ? "select * from transactions where admin='".$owner."' order by date_created desc": "select * from transactions where rep='".$owner."' order by date_created desc";
         $query = $this->con->query($sql);
             if(!$query){
                 $result['code'] = 1;
                 $result['msg'] = "Could not get transactions";
                 $result['error'] = $this->con->error;
-            }
+            }   
             else{
                 $result['code'] = 0;
-                $result['msg'] = "Successful";
+                $result['msg'] = "Successful ".$tag."/".$owner;
                 $transactions = array();
                 while($r=$query->fetch_assoc()){
                     $r['rep'] = $this->getRepById($r['rep'])['rep'];
-                    if($tag == 0){
-                        // echo json_encode($r['rep']);
-                        if($r['rep']['admin'] == $owner) $transactions[] = $r;
-                    }
-                    else $transactions[] = $r;
+                    $r['product_detail'] = $this->getProduct($r['product'])['product'];
+                    $r['customer_detail'] = $this->getCustomer($r['customer'])['customer'];
+                    $transactions[] = $r;
                 }
                 $result['transactions'] = $transactions;
                 

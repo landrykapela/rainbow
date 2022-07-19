@@ -28,23 +28,23 @@ class API{
         
         $result = array();
         $user = $this->getUserByEmail($email);
-        if($user === false){
+        if($user == false){
             $result['code'] = 1;
-            $result['msg'] = "Could not log you in";
+            $result['msg'] = "Could not log you in with this email: ".$email;
         }
         else{
-            $user = $user['user'];
-            if(password_verify($password,$user['password'])){
+            $u = $user['user'];
+            if(password_verify($password,$u['password'])){
                 $result['code'] = 0;
                 $result['msg'] = "Successful";
-                unset($user['password']);
-                if($user['level'] == 1) $user['detail'] = $this->getRepByEmail($user['email'])['rep'];
-                $result['user'] = $user;
+                unset($u['password']);
+                if(intval($u['level']) == 1) $u['detail'] = $this->getRepByEmail($u['email'])['rep'];
+                $result['user'] = $u;
                 
             }
             else{
                 $result['code'] = 1;
-                $result['msg'] = "Please provide a valid password";
+                $result['msg'] = "Please provide a valid password ";
                 
             }
         }
@@ -117,21 +117,57 @@ class API{
     public function getProducts($userId){
         $result = array();
         $user = $this->getUserById($userId);
-        if(!$user){
+        if($user === false){
             $result['code'] = 1;
-            $result['msg'] = "You need  to be logged in to perform this operation";
+            $result['msg'] = "You need to be logged in to perform this operation: ".$userId;
         }
         else{
-            $sql = "select * from products where user='".$userId."' order by name asc";
+            if(intval($user['user']['level']) == ADMIN) {
+                $sql = "select * from products where user='".$userId."' order by name asc";
+                $query = $this->con->query($sql);
+                if(!$query){
+                    $result['code'] = 1;
+                    $result['msg'] = "Could not get product list for user";
+                    
+                }
+                else{
+                    $result['code'] = 0;
+                    $result['msg'] =  "Successful ";
+                    $products = array();
+                    while($row = $query->fetch_assoc()) {
+                        $products[] = $row;
+                    }
+                    $result['products'] = $products; 
+                }
+            }
+            else{
+                $rep = $this->getRepByEmail($user['user']['email']);
+                $result = $this->getProductsForRep($rep['rep']['id']);
+            
+            }
+            
+        }
+        return $result;
+    }
+    public function getProductsForRep($repId){
+        $result = array();
+        $rep = $this->getRepById($repId);
+        if($rep['rep'] == null){
+            $result['code'] = 1;
+            $result['msg'] = "You need to be logged in to perform this operation: ".$repId;
+            
+        }
+        else{
+            $sql = "SELECT p.*,iss.product from products as p inner join issues as iss on p.id=iss.product where iss.rep='".$repId."'";
             $query = $this->con->query($sql);
             if(!$query){
                 $result['code'] = 1;
-                $result['msg'] = "Could not get product listfor user";
+                $result['msg'] = "Could not get product list for user";
                 
             }
             else{
                 $result['code'] = 0;
-                $result['msg'] =  "Successful ".$userId;
+                $result['msg'] =  "Successful ";
                 $products = array();
                 while($row = $query->fetch_assoc()) {
                     $products[] = $row;
@@ -168,37 +204,67 @@ class API{
         else{
             $id = $this->generateId(5);
             if($image != null){
+                if(base64_decode($image,true) == false){
                 $ext = strtolower(pathinfo(UPLOAD_PATH.basename($image["name"]),PATHINFO_EXTENSION));
+                }
+                else $ext = "png";
                 $filename = $id .".".$ext;
                 $path = UPLOAD_PATH.$filename;
                 $sql = "insert into products (id,name,description,pack_size,user,image) values ('".$id."','".$name."','".$description."','".$packsize."','".$userId."','".$filename."')";
                 $query = $this->con->query($sql);
                 if(!$query){
                     $result['code'] = 1;
-                    $result['msg'] = "Could not create product record ".$this->con->error;
+                    $result['msg'] = "Could not create product record ";
+                    $result['error'] = $this->con->error;
                     
                 }
                 else{
                     $result['code'] = 0;
                     $result['msg'] =  "Successful";
                     $result['products'] = $this->getProducts($userId)['products']; 
-               
-                    if(move_uploaded_file($image['tmp_name'],$path)){
-                        $result['msg'] = "Image successfully uploaded";
+                    
+                    if(base64_decode($image,true) == false){
+                        move_uploaded_file($image['tmp_name'],$path);
                     }
                     else{
-                        $result['msg'] =  "Could not upload image";
+                        file_put_contents($path,base64_decode($image,true));
                     }
+                    
                 }
             }
             else{
                 $result['code'] = 1;
-                $result['msg'] =  "No image";
+                $result['msg'] =  "No image uploaded";
                 $result['products'] = $this->getProducts($user); 
             }
         }
         return $result;
     }
+    public function deleteProduct($data){
+        $result = array();
+        $user = $this->getUserById($data['user_id']);
+        if($user === false){
+            $result['code'] = 1;
+            $result['msg'] = "You need  to be logged in to perform this operation";
+            
+        }
+        else{
+            $id = $data['id'];
+            $sql = "update products set status=1 where id='".$id."'";
+            $query = $this->con->query($sql);
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not update product ";
+                
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] =  "Successful";
+                $result['products'] = $this->getProducts($data['user_id'])['products']; 
+            }
+        }
+        return $result;
+}
     public function updateProduct($data){
         $result = array();
         $user = $this->getUserById($data['user_id']);
@@ -206,22 +272,25 @@ class API{
         if($user === false){
             $result['code'] = 1;
             $result['msg'] = "You need  to be logged in to perform this operation";
-            $result['u'] = $data['user_id'];
+            
         }
         else{
             $id = $data['id'];
             $sql = "update products set ";
-            if($image != null){
-                $ext = strtolower(pathinfo(UPLOAD_PATH.basename($image["name"]),PATHINFO_EXTENSION));
+            if($image != null && $image != "undefined" && $image != "null"){
+                if(base64_decode($image,true) == false){
+                    $ext = strtolower(pathinfo(UPLOAD_PATH.basename($image["name"]),PATHINFO_EXTENSION));
+                }
+                else $ext = "png";
                 $filename = $id .".".$ext;
                 $path = UPLOAD_PATH.$filename;
                 $sql .= "image='".$filename."', ";//(id,name,description,pack_size,user,image) values ('".$id."','".$name."','".$description."','".$packsize."','".$userId."','".$filename."')";
             }
-            $sql .= "name='".$data['name']."',description='".$data['description']."',pack_size='".$data['pack_size']."' where id='".$id."'";
+            $sql .= "status='".$data['status']."',name='".$data['name']."',description='".$data['description']."',pack_size='".$data['pack_size']."' where id='".$id."'";
             $query = $this->con->query($sql);
             if(!$query){
                 $result['code'] = 1;
-                $result['msg'] = "Could not update product";
+                $result['msg'] = "Could not update product ".$this->con->error;
                 
             }
             else{
@@ -229,12 +298,13 @@ class API{
                 $result['msg'] =  "Successful";
                 $result['products'] = $this->getProducts($data['user_id'])['products']; 
             
-                if(move_uploaded_file($data['image']['tmp_name'],$path)){
-                    $result['msg'] = "Image successfully uploaded";
+                if(base64_decode($image,true) ==false){
+                    move_uploaded_file($data['image']['tmp_name'],$path);
                 }
                 else{
-                    $result['msg'] =  "Could not upload image";
+                    file_put_contents($path,base64_decode($image,true));
                 }
+                
             }
         }
             
@@ -314,6 +384,33 @@ class API{
         }
         return $result;
     }
+
+    //delete supplier
+    public function deleteSupplier($data){
+        $result = array();
+        $user = $this->getUserById($data['user_id']);
+        if($user === false){
+            $result['code'] = 1;
+            $result['msg'] = "You need  to be logged in to perform this operation";
+        }
+        else{
+            $id = $data['id'];  
+            $sql = "update suppliers set status=1 where id='".$id."' and admin='".$data['user_id']."'"; 
+            $query = $this->con->query($sql);
+                if(!$query){
+                    $result['code'] = 1;
+                    $result['msg'] = "Could not update supplier record ";
+                    
+                }
+                else{
+                    $result['code'] = 0;
+                    $result['msg'] =  "Successful";
+                    $result['suppliers'] = $this->getSuppliers($data['user_id'])['suppliers']; 
+               
+                }
+            }
+            return $result;
+    }
     //update supplier
     public function updateSupplier($data){
         $result = array();
@@ -355,9 +452,31 @@ class API{
         else{
             $id = $this->generateId(5);
             if($avatar != null){
-                $ext = strtolower(pathinfo(UPLOAD_PATH.basename($avatar["name"]),PATHINFO_EXTENSION));
-                $filename = $id .".".$ext;
-                $path = UPLOAD_PATH.$filename;
+                if(base64_decode($avatar) == false){
+                    $ext = strtolower(pathinfo(UPLOAD_PATH.basename($avatar["name"]),PATHINFO_EXTENSION));
+                    $filename = $id .".".$ext;
+                    $path = UPLOAD_PATH.$filename;   
+                    if(move_uploaded_file($avatar['tmp_name'],$path)){
+                        $result['msg'] = "Image successfully uploaded";
+                    }
+                    else{
+                        $result['msg'] =  "Could not upload image";
+                    }        
+                }
+                else{
+                    // $parts = explode(";base64,",$avatar);
+                    // if(sizeof($parts) > 0){
+                        $ext = "png";//strtolower(explode("/",$parts[0])[1]);
+                        $filename = $id .".".$ext;
+                        $path = UPLOAD_PATH.$filename;
+                        file_put_contents($path,base64_decode($avatar));
+                    // }
+                    // else{
+
+                    // }
+                    
+                }
+                
                 
                 $sql = "insert into reps (id,fname,lname,email,phone,service_area,admin,avatar) values 
                 ('".$id."','".$fname."','".$lname."','".$email."','".$phone."','".$area."','".$admin."','".$filename."')";
@@ -375,17 +494,13 @@ class API{
                     if($q){
                         $result['code'] = 0;
                         $result['msg'] =  "Successful";
-                        if(move_uploaded_file($avatar['tmp_name'],$path)){
-                            $result['msg'] = "Image successfully uploaded";
-                        }
-                        else{
-                            $result['msg'] =  "Could not upload image";
-                        } 
+                        
                     }
                     else{
                         $this->con->query("delete from reps where id='".$id."'");
                         $result['code'] = 1;
                         $result['msg'] =  "Sorry, could not create rep ".$email;
+                        unlink($path);
                     }
 
                     $result['reps'] = $this->getReps($admin)['reps']; 
@@ -428,13 +543,110 @@ class API{
         }
         return $result;
     }
+    //update rep
+    public function updateRep($data){
+        $result = array();
+        $rep = $this->getRepById($data['id']);
+        if($rep['rep'] == null){
+            $result['code'] = 1;
+            $result['msg'] = "Invalid rep";
+        }
+        else{
+            $avatar = null;
+            $password = null;
+            if($data['password'] != null){
+                $password = password_hash($data['password'],PASSWORD_BCRYPT);
+                unset($data['password']);
+            }
+            else{
+                unset($data['password']);
+            }
+            if(isset($data['image']) && $data['image'] != null && $data['image'] !="null" && $data["image"] !="undefined") {
+                $avatar = $data['image'];
+                // unset($data['image']);
+                
+                
+                if(gettype($avatar) == "string"){
+                    $filename = ($rep['rep']['avatar']) ? $rep['rep']['avatar']:$rep['rep']['id'].".png";
+                    $path = UPLOAD_PATH.$filename;
+                    file_put_contents($path,base64_decode($avatar));
+                }
+                else{
+                    $ext = strtolower(pathinfo(UPLOAD_PATH.basename($avatar["name"]),PATHINFO_EXTENSION));
+                    $filename = ($rep['rep']['avatar']) ? $rep['rep']['avatar']:$rep['rep']['id'].".".$ext;
+                    $path = UPLOAD_PATH.$filename;
+                    move_uploaded_file($avatar['tmp_name'],$path);
+                }
+                
+            }
+            else unset($data['image']);
+            $needCheck = ($rep['rep']['email'] != $data['email']);
+            $check = false;
+            if($needCheck) $check = $this->getUserByEmail($data['email']);            
+            if(!$check){
+                $values = array_values($data);
+                $keys = array_keys($data);
+                $sql = "update reps set ";
+                for($i=0; $i < sizeof($keys);$i++){
+                    $val = $values[$i];
+                    $key = $keys[$i];
+                    if($key == "image" && isset($data['image'])){
+                        $key = "avatar";
+                        $val = $filename;
+                    }
+                    if($i == sizeof($keys) -1) $sql .= $key .="='".$val."'";
+                    else $sql .= $key .="='".$val."',";
+                }
+                $sql .= " where id='".$data['id']."'";
+                // $result['msg'] = $sql;
+                $query = $this->con->query($sql);
+                if(!$query){
+                    $result['code'] = 1;
+                    $result['msg'] = "Could not update rep";
+                    $result['error'] = $this->con->error;
+                }
+                else{
+                    $q = "update user set";
+                    if(!empty($password)){
+                        $p = " password = '".$password."'";
+                    }
+                    if($needCheck){
+                        $e = " email='".$data['email']."'";
+                    }
+                    if(!empty($p) || !empty($e)){
+                        if(!empty($p)) {
+                            $q .= $p;
+                            if(!empty($e)) $q .= ", ".$e;
+                        }
+                        else{
+                            if(!empty($e)) $q.=$e;
+                        }
+                        $q .=" where id='".$rep['rep']['uid']."'";
+                        $sql2 = $this->con->query($q);
+                    }
+                    
+                    $result['code'] = 0;
+                    $result['msg'] = "Successful";
+                    $result['error'] = $this->con->error;
+                    $result['reps'] = $this->getReps($data['admin'])['reps'];//$data['admin'] != null) ? $this->getReps($data['admin']) : $this->getRepById($data['id']);
+                }
+            }
+            else{
+                $result['code'] = 1;
+                $result['msg'] = "You cannot use this email address";
+                $result['error'] = "E-mail address already registered";
+            }
+        }
+       
+        return $result;
+    }
     //get reps
     public function getReps($userId){
         $result = array();
         $user = $this->getUserById($userId);
         if(!$user){
             $result['code'] = 1;
-            $result['msg'] = "You need  to be logged in to perform this operation";
+            $result['msg'] = "You need to be logged in to perform this operation";
         }
         else{
             $sql = "select * from reps where admin='".$userId."' order by fname asc";
@@ -475,7 +687,7 @@ class API{
             }
             else{
                 $result['code'] = 0;
-                $result['msg'] = "Successful ".$repId;
+                $result['msg'] = "Successful ";
                 $rep = $query->fetch_assoc();
                 $result['rep'] = $rep;
             }
@@ -484,7 +696,7 @@ class API{
     }
     public function getRepById($repId){
         $result = array();
-        $query = $this->con->query("select u.id as uid,u.password,u.level,r.* from user as u inner join reps as r on u.email=r.email where r.id='".$repId."'");
+        $query = $this->con->query("select u.id as uid,r.* from user as u inner join reps as r on u.email=r.email where r.id='".$repId."'");
         if(!$query){
             $result['code'] = 1;
             $result['msg'] = "Could not get rep";
@@ -536,7 +748,7 @@ class API{
                 $result['error'] = $this->con->error;
             }
             else{
-                $query2 = $this->con->query("delete from reps where id='".$rid."'");
+                $query2 = $this->con->query("update reps set status=1 where id='".$rid."'");
                 if(!$query2){
                     $this->con->rollback();
                     $result['code'] = 1;
@@ -601,17 +813,28 @@ class API{
                     $result['error']= $this->con->error;
                 }
                 else{
-                    $msg = "Successful";
+                    $msg = "Successful but no invoice uploaded";
                     if($invoice != null){
-                        
-                        $ext = strtolower(pathinfo(UPLOAD_PATH.basename($invoice["name"]),PATHINFO_EXTENSION));
+                        if(base64_decode($invoice) == false){
+                           $ext = strtolower(pathinfo(UPLOAD_PATH.basename($invoice["name"]),PATHINFO_EXTENSION));
+                         
+                        }
+                        else $ext = "pdf";
                         $filename = $invoice_no.".".$ext;
-                        $path = UPLOAD_PATH.$filename;
+                        $path = __DIR__ ."/".UPLOAD_PATH.$filename;
         
                         $sql = "update inventory set invoice='".$filename."' where invoice_no='".$invoice_no."'";
                         if($this->con->query($sql)) {
-                            move_uploaded_file($invoice['tmp_name'],$path);
-                            $msg = "Invoice file successfully saved!";
+                            if(base64_decode($invoice) == false){
+                                if(move_uploaded_file($invoice['name'],$path)){
+                                $msg = "Successful and invoice was uploaded to ".$path;
+                                }
+                                else $msg = "Could not upload to path".$path;
+                            }
+                            else {
+                                file_put_contents($path,base64_decode($invoice));
+                            $msg = "Successful and invoice was uploaded";
+                            }
                         }
                         $result['code'] = 0;
                         $result['msg'] = $msg;
@@ -654,7 +877,7 @@ class API{
             $result['error'] = $this->con->error;
         }
         else{
-            $query = $this->con->query("select * from inventory where admin='".$userId."'");
+            $query = $this->con->query("select * from inventory where admin='".$userId."' order by date_created desc");
             if(!$query){
                 $result['code'] = 1;
                 $result['msg'] = "Could not get inventory";
@@ -683,8 +906,14 @@ class API{
             $result['error'] = $this->con->error;
         }
         else{
-            $sql = "select * from issues where admin='".$userId."'";
-            if($user['user']['level'] == "1") $sql = "select * from issues where rep='".$user['user']['id']."'";
+            if($user['user']['level'] == ADMIN){
+                $sql = "select * from issues where admin='".$userId."'";
+            }
+            else{
+                $rep = $this->getRepByEmail($user['user']['email'])['rep'];
+                $sql = "select * from issues where rep='".$rep['id']."'";
+            }
+            
             $query = $this->con->query($sql);
             if(!$query){
                 $result['code'] = 1;
@@ -707,7 +936,7 @@ class API{
     }
     public function getCustomer($id){
         $result = array();
-        $user = $this->getUserById($userId);
+        $user = $this->getUserById($id);
         
         $query = $this->con->query("select * from customers where id='".$id."' limit 1");
         if(!$query){
@@ -765,15 +994,43 @@ class API{
         else{
             $id = $this->generateId(12);
             $data['id'] = $id;
+            $image = $data['image'];
+            unset($data['image']);
+            $hasImage = false;
+            if(isset($image)){
+                $hasImage = true;
+                if(base64_decode($image,true) == false){
+                    $ext = strtolower(pathinfo(UPLOAD_PATH.basename($image["name"]),PATHINFO_EXTENSION));
+                }
+                else $ext = "png";
+                $filename = $id .".".$ext;
+                $path = UPLOAD_PATH.$filename;
+            }
             $sql = "insert into customers (";
+            $cols = "";
             for($i=0;$i<sizeof(array_keys($data));$i++){
-                $sql .= array_keys($data)[$i].", ";
+                $cols .= array_keys($data)[$i].", ";
             }
-            $sql .= "date_created) values (";
+            
+            $vals = "";
             for($i=0;$i<sizeof(array_values($data));$i++){
-                $sql .= "'".array_values($data)[$i]."', ";
+                $vals .= "'".array_values($data)[$i]."', ";
             }
-            $sql .= time().")";
+            if($hasImage){
+                if(base64_decode($image,true) == false){
+                    move_uploaded_file($image['tmp_name'],$path);
+                }
+                else{
+                    file_put_contents($path,base64_decode($image,true));
+                }
+                $cols .= 'image,';
+                $vals .="'".$filename."',";
+            }
+            $cols .= "date_created) values (";
+            $vals .= time().")";
+
+            $sql .= $cols . $vals;
+            
             $query = $this->con->query($sql);
             if(!$query){
                 $result['code'] = 1;
@@ -782,7 +1039,7 @@ class API{
             }
             else{
                 $result['code'] = 0;
-                $result['msg'] = "Successful";
+                $result['msg'] = "Successful ".$sql;
                 $result['customers'] = $this->getCustomers($userId)['customers'];
             }
         }
@@ -798,6 +1055,19 @@ class API{
             $result['error'] = $this->con->error;
         }
         else{
+            $image = $data['image'];
+            unset($data['image']);
+            $hasImage = false;
+            if(isset($image)){
+                $hasImage = true;
+                if(base64_decode($image,true) == false){
+                    $ext = strtolower(pathinfo(UPLOAD_PATH.basename($image["name"]),PATHINFO_EXTENSION));
+                }
+                else $ext = "png";
+                $filename = $cid .".".$ext;
+                $path = UPLOAD_PATH.$filename;
+                $data['image'] = $filename;
+            }
             if(sizeof(array_keys($data)) > 0){
                 $sql = "update customers set ";
                 for($i=0;$i<sizeof(array_keys($data));$i++){
@@ -806,6 +1076,8 @@ class API{
                 }
                
                 $sql .= " where id='".$cid."'";
+
+
                 $query = $this->con->query($sql);
                 if(!$query){
                     $result['code'] = 1;
@@ -813,8 +1085,14 @@ class API{
                     $result['error'] = $this->con->error;
                 }
                 else{
+                    if($hasImage){
+                        if(base64_decode($image,true) == false){
+                            move_uploaded_file($image['tmp_name'],$path);
+                        }
+                        else file_put_contents($path,base64_decode($image,true));
+                    }
                     $result['code'] = 0;
-                    $result['msg'] = "Successful";
+                    $result['msg'] = "Successful ".$sql;
                     $result['customers'] = $this->getCustomers($data['rep'])['customers'];
                 }
             }
@@ -836,7 +1114,7 @@ class API{
             $result['error'] = $this->con->error;
         }
         else{
-            $sql = "delete from customers where id='".$cid."' and rep='".$rep."'";
+            $sql = "update customers set status=1 where id='".$cid."' and rep='".$rep."'";
             $query = $this->con->query($sql);
             if(!$query){
                 $result['code'] = 1;
@@ -854,51 +1132,74 @@ class API{
     }
     public function saveTransaction($data){
         $result = array();
-        $id = $this->generateId(16);
-        $file = $data['file'];
-        // $result['d'] = $data;
-        unset($data['file']);
-        $sql = "insert into transactions (id,";
-        for($i=0;$i<sizeof(array_keys($data));$i++){
-            $sql .= array_keys($data)[$i].", ";
-        }
-        if($file != null) $sql .= "file, ";
-        $sql .= "date_created) values ('".$id."',";
-
-        for($i=0;$i<sizeof(array_values($data));$i++){
-            if(gettype(array_values($data)[$i]) == "string") $sql .= "'".array_values($data)[$i]."',";
-            else $sql .= array_values($data)[$i].",";
-        }
-        if($file != null){
-            $ext = strtolower(pathinfo(UPLOAD_PATH.basename($file["name"]),PATHINFO_EXTENSION));
-            $filename = $id.".".$ext;
-            if(move_uploaded_file($file['tmp_name'],UPLOAD_PATH.$filename)){
-                $sql .= "'".$filename."',";
-            }
-            else{
-                $sql .= "NULL,";
-            }
-        }
-        $sql .= time().")";
-        $query = $this->con->query($sql);
-        if(!$query){
+        $rep = $this->getRepById($data['rep'])['rep'];
+        if($rep == null){
             $result['code'] = 1;
-            $result['msg'] = "Could not record transaction";
-            $result['error'] = $this->con->error;
+            $result['msg'] = "Please login to use this feature";
+            
         }
         else{
-            $result['code'] = 0;
-            $result['msg'] = "Success";
-            $result['transactions'] = $this->getTransactions($data['rep'],1)['transactions'];
-        }
-        
+            $id = $this->generateId(16);
+            $file = $data['file'];
+            // $result['d'] = $data;
+            unset($data['file']);
+            $sql = "insert into transactions (id,";
+            for($i=0;$i<sizeof(array_keys($data));$i++){
+                $sql .= array_keys($data)[$i].", ";
+            }
+            if($file != null) $sql .= "file, ";
+            $sql .= "date_created) values ('".$id."',";
+
+            for($i=0;$i<sizeof(array_values($data));$i++){
+                if(gettype(array_values($data)[$i]) == "string") $sql .= "'".array_values($data)[$i]."',";
+                else $sql .= array_values($data)[$i].",";
+            }
+            if($file != null){
+                if(base64_decode($file,true) == false){
+                    $ext = strtolower(pathinfo(UPLOAD_PATH.basename($file["name"]),PATHINFO_EXTENSION));
+                    $filename = $id.".".$ext;
+                    move_uploaded_file($file['tmp_name'],UPLOAD_PATH.$filename);
+                }
+                else{
+                    $ext = "png";
+                    $filename = $id.".".$ext;
+                    $path = UPLOAD_PATH.$filename;
+                    file_put_contents($path,base64_decode($file,true));
+                }
+                $sql .= "'".$filename."',";
+
+            }
+            $sql .= time().")";
+            $query = $this->con->query($sql);
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not record transaction";
+                $result['error'] = $this->con->error;
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "Success";
+                $result['transactions'] = $this->getTransactions($rep['uid'])['transactions'];
+            }
+        }    
         return $result;
     }
-
-    public function getTransactions($owner,$tag){
+    public function getTransactions($owner){
         $result = array();
-        $sql = ($tag == 0) ? "select * from transactions where admin='".$owner."' order by date_created desc": "select * from transactions where rep='".$owner."' order by date_created desc";
-        $query = $this->con->query($sql);
+        $user = $this->getUserById($owner);
+        if($user == false){
+            $result['code'] = 1;
+            $result['msg'] = "You must login to send this request";
+        }
+        else{
+            if($user['user']['level'] == ADMIN){
+               $sql = "select * from transactions where admin='".$owner."' order by date_created desc";
+            }
+            else{
+                $rep = $this->getRepByEmail($user['user']['email'])['rep'];
+                $sql = "select * from transactions where rep='".$rep['id']."' order by date_created desc";
+            }
+            $query = $this->con->query($sql);
             if(!$query){
                 $result['code'] = 1;
                 $result['msg'] = "Could not get transactions";
@@ -906,7 +1207,7 @@ class API{
             }   
             else{
                 $result['code'] = 0;
-                $result['msg'] = "Successful ".$tag."/".$owner;
+                $result['msg'] = "Successful";
                 $transactions = array();
                 while($r=$query->fetch_assoc()){
                     $r['rep'] = $this->getRepById($r['rep'])['rep'];
@@ -917,7 +1218,8 @@ class API{
                 $result['transactions'] = $transactions;
                 
             }
-            return $result;
+        }
+        return $result;
     }
     
 }

@@ -1,7 +1,5 @@
 <?php
-header("Access-Control-Allow-Origin: *");
-header('Access-Control-Allow-Headers: Content-type'); 
-header('Access-Control-Method: POST'); 
+
 
 ini_set('display_errors',1);
 require_once('api.php');
@@ -22,16 +20,6 @@ if(isset($_GET['tag'])){
         $result = $api->updateProduct($data);
         echo json_encode($result);
     }
-    else if(isset($data["btnDeleteProduct"])){
-        unset($data['btnEditProduct']);
-        $result = $api->deleteProduct($data);
-        echo json_encode($result);
-    }
-    else if(isset($data["btnDeleteSupplier"])){
-        unset($data['btnDeleteSupplier']);
-        $result = $api->deleteSupplier($data);
-        echo json_encode($result);
-    }
     else if(isset($data["btnAddSupplier"])){
         $result = $api->createSupplier($data['name'],$data['country'],$data['phone'],$data['email'],$data['address'],$data['contact'],$data['user_id']);
         echo json_encode($result);
@@ -42,13 +30,7 @@ if(isset($_GET['tag'])){
     }
     else if(isset($data["btnEditRep"])){
         unset($data['btnEditRep']);
-        $data['image'] = $image;
         $result = $api->updateRep($data);
-        echo json_encode($result);
-    }
-    else if(isset($data["btnDeleteRep"])){
-        unset($data['btnDeleteRep']);
-        $result = $api->deleteRep($data['id'],$data['user_id']);
         echo json_encode($result);
     }
     else if(isset($data["btnAddRep"])){
@@ -65,27 +47,23 @@ if(isset($_GET['tag'])){
         echo json_encode($result);
     }
     else if(isset($data['btnTransaction'])){
+        $data = $data;
         unset($data['btnTransaction']);
-        $data['file'] = !empty($_POST) ? $_FILES['file'] : $data['file'];
+        $data['file'] = $_FILES['file'];
         $result = $api->saveTransaction($data);
         echo json_encode($result);
     }
     else if(isset($data['btnAddCustomer'])){
         unset($data['btnAddCustomer']);
-        $data['image'] = !empty($_POST) ? $_FILES['image'] : $data['image'];
         $result = $api->createCustomer($data['rep'],$data);
         echo json_encode($result);
     }
     else if(isset($data['btnUpdateCustomer'])){
-        $data['image'] = $image;
+        $data = $data;
         $id = $data['id'];
         unset($data['id']);
         unset($data['btnUpdateCustomer']);
         $result = $api->updateCustomer($id,$data);
-        echo json_encode($result);
-    }
-    else if(isset($data['btnDeleteCustomer'])){
-        $result = $api->deleteCustomer($data['id'],$data['rep']);
         echo json_encode($result);
     }
     else if(isset($_GET['uid']) && $_GET['tag'] == "products"){
@@ -119,8 +97,10 @@ if(isset($_GET['tag'])){
         echo json_encode($result);
     }
     else if(isset($_GET['uid']) && $_GET['tag'] == "transactions"){
-        $uid = $_GET['uid'];
-        $result = $api->getTransactions($uid);
+        $rid = $_GET['uid'];
+        if(isset($_GET['t'])) $t = 0;
+        else $t =1;
+        $result = $api->getTransactions($rid,$t);
         echo json_encode($result);
     }
     else{
@@ -133,22 +113,22 @@ if(isset($_GET['tag'])){
 else if(isset($_GET['uid'])){
     $userId = $_GET['uid'];
     $level = $_GET['level'];
-    $result['customers'] = $api->getCustomers($userId);
+    $result['products'] = $api->getProducts($userId);
+    $result['reps'] = $api->getReps($userId);
+    $result['suppliers'] = $api->getSuppliers($userId);
+    $result['inventory'] = $api->getInventory($userId);
     $result['issues'] = $api->getIssues($userId);
     $result['transactions'] = $api->getTransactions($userId,$level);
-    $result['products'] = $api->getProducts($userId);
-    if(intval($level) == ADMIN){
-        $result['inventory'] = $api->getInventory($userId);
-        $result['suppliers'] = $api->getSuppliers($userId);
-        $result['reps'] = $api->getReps($userId);
+    if($level != ADMIN){
+        $result['customers'] = $api->getCustomers($userId);
     }
     echo json_encode($result);
 }
 else{
     $raw = file_get_contents("php://input");
-   
+    // echo $raw;
     $content = json_decode($raw);
-
+    // echo $raw;
     //check signup form
     if(isset($content->btnSignup)){
         $fname = (isset($content->fname) && !empty($content->fname)) ? filter_var($content->fname,FILTER_SANITIZE_STRING) : null;
@@ -168,7 +148,8 @@ else{
         }
         
     }
-    else if(isset($content->btnLogin)){
+    
+    if(isset($content->btnLogin)){
         $result = array();
         if(filter_var($content->email,FILTER_VALIDATE_EMAIL)){
             $sign = $api->signIn($content->email,$content->password);
@@ -182,11 +163,6 @@ else{
         
         
     }
-    else{
-        $result['code'] = 1;
-        $result['msg'] = "Invalid Request";
-        echo json_encode($result);
-    }
    
     
 }
@@ -194,7 +170,51 @@ else{
 
 
 
-
+[
+    {"id":"19","invoice_no":"202201260001",
+        "product":{"id":"qFQ5u","name":"Balimi","pack_size":"100ML","description":"Balimi ni dawa ya kikohozi cha nguruwe","image":"qFQ5u.jpg","user":"PJsaFZHmuyXv"},
+        "rep":{"uid":"EhjKF0sC6ClB","id":"7nKZK","fname":"Ameno","lname":"Dorime","avatar":"7nKZK.jpg","service_area":"Mwanza","phone":"0787777888","email":"ameno@makdavid.com","admin":"PJsaFZHmuyXv"},
+        "quantity":"100",
+        "price":"2000",
+        "amount":"200000",
+        "date_created":"1643177442",
+        "admin":"PJsaFZHmuyXv"},
+    {"id":"20","invoice_no":"202201250002",
+        "product":{"id":"NxEHh","name":"Roboto","pack_size":"100ML","description":"100ML Roboto dawa ya mbu wakali wanaosababisha kiherehere","image":"NxEHh.jpg","user":"PJsaFZHmuyXv"},
+        "rep":{"uid":"Twcpa8aZ9Yge","id":"aqwcP","fname":"Job","lname":"Ndugai","avatar":"aqwcP.jpg","service_area":"Dodoma","phone":"0788999000","email":"job@makdavid.com","admin":"PJsaFZHmuyXv"},
+        "quantity":"500",
+        "price":"15000",
+        "amount":"7500000",
+        "date_created":"1643179457",
+        "admin":"PJsaFZHmuyXv"},
+    {"id":"21","invoice_no":"202201250002",
+        "product":{"id":"Xjfax","name":"Roboto Max","pack_size":"1LT","description":"Roboto max is a 1L packed dawa ya kuuwa mbu wa kali","image":"Xjfax.jpg","user":"PJsaFZHmuyXv"},
+        "rep":{"uid":"EhjKF0sC6ClB","id":"7nKZK","fname":"Ameno","lname":"Dorime","avatar":"7nKZK.jpg","service_area":"Mwanza","phone":"0787777888","email":"ameno@makdavid.com","admin":"PJsaFZHmuyXv"},
+        "quantity":"200",
+        "price":"75000",
+        "amount":"15000000",
+        "date_created":"1644043846",
+        "admin":"PJsaFZHmuyXv"},
+    {"id":"25","invoice_no":"202201260001",
+        "product":{"id":"qFQ5u","name":"Balimi","pack_size":"100ML","description":"Balimi ni dawa ya kikohozi cha nguruwe","image":"qFQ5u.jpg","user":"PJsaFZHmuyXv"},
+        "rep":{"uid":"Twcpa8aZ9Yge","id":"aqwcP","fname":"Job","lname":"Ndugai","avatar":"aqwcP.jpg","service_area":"Dodoma","phone":"0788999000","email":"job@makdavid.com","admin":"PJsaFZHmuyXv"},
+        "quantity":"300",
+        "price":"2000",
+        "amount":"600000",
+        "date_created":"1644218003",
+        "admin":"PJsaFZHmuyXv"},
+    {"id":"26","invoice_no":"202201250002",
+        "product":{"id":"Xjfax","name":"Roboto Max","pack_size":"1LT","description":"Roboto max is a 1L packed dawa ya kuuwa mbu wa kali","image":"Xjfax.jpg","user":"PJsaFZHmuyXv"},
+        "rep":{"uid":"Twcpa8aZ9Yge","id":"aqwcP","fname":"Job","lname":"Ndugai","avatar":"aqwcP.jpg","service_area":"Dodoma","phone":"0788999000","email":"job@makdavid.com","admin":"PJsaFZHmuyXv"},
+        "quantity":"100","price":"75000","amount":"7500000","date_created":"1648386703","admin":"PJsaFZHmuyXv"},
+    {"id":"27","invoice_no":"202201260001",
+        "product":{"id":"qFQ5u","name":"Balimi","pack_size":"100ML","description":"Balimi ni dawa ya kikohozi cha nguruwe","image":"qFQ5u.jpg","user":"PJsaFZHmuyXv"},
+        "rep":{"uid":"EhjKF0sC6ClB","id":"7nKZK","fname":"Ameno","lname":"Dorime","avatar":"7nKZK.jpg","service_area":"Mwanza","phone":"0787777888","email":"ameno@makdavid.com","admin":"PJsaFZHmuyXv"},
+        "quantity":"100",
+        "price":"2000",
+        "amount":"200000",
+        "date_created":"1648470194",
+        "admin":"PJsaFZHmuyXv"}]
 
 
 

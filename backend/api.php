@@ -114,6 +114,122 @@ class API{
         }
         
     }
+    public function updateUser($data){
+        $id = $data['uid'];
+        $image = $data['image'];
+        $email = $data['email'];
+        $level = $data['level'];
+        unset($data['uid']);
+        unset($data['email']);
+        unset($data['level']);
+        $result = array();
+        $user = $this->getUserById($id);
+        if($user === false){
+            $result['code'] = 1;
+            $result['msg'] = "You need to be logged in to perform this operation: ";
+        }
+        else{
+            if(isset($image)){
+                if(base64_decode($image,true) == false){
+                    $ext = strtolower(pathinfo(UPLOAD_PATH.basename($image["name"]),PATHINFO_EXTENSION));
+                }
+                else $ext = "png";
+                $filename = $id .".".$ext;
+                $path = UPLOAD_PATH.$filename;
+                if(base64_decode($image,true) == false){
+                    move_uploaded_file($image['tmp_name'],$path);
+                }
+                else{
+                    file_put_contents($path,base64_decode($image,true));
+                }
+            }
+            else unset($data['image']);
+            $sql ="update user set ";
+            $values = array_values($data);
+            $keys = array_keys($data);
+            for($i=0; $i < sizeof($keys);$i++){
+                $val = $values[$i];
+                $key = $keys[$i];
+                if($key == "image" && isset($data['image'])){
+                    $key = "avatar";
+                    $val = $filename;
+                }
+                if($key == "password"){
+                    $val = password_hash($val,PASSWORD_BCRYPT);
+                }
+                if($i == sizeof($keys) -1) $sql .= $key .="='".$val."'";
+                else $sql .= $key .="='".$val."',";
+            }
+            $sql .= " where id='".$id."'";
+
+            $query = $this->con->query($sql);
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Sorry, could not update user data ".$sql;
+                $result['error'] = $this->con->error;
+                unlink($path);
+            }
+            else{
+                if(intval($user['user']['level']) === NORMAL) {    
+                    $rep = $this->getRepByEmail($email)['rep'];
+                    if(is_null($rep)){
+                        $result['code'] = 1;
+                        $result['msg'] = "Sorry, could not find rep data";
+                    }
+                    else{
+                        if(isset($image)){
+                            if(base64_decode($image,true) == false){
+                                $ext = strtolower(pathinfo(UPLOAD_PATH.basename($image["name"]),PATHINFO_EXTENSION));
+                            }
+                            else $ext = "png";
+                            $filename = $rep['id'] .".".$ext;
+                            
+                        }
+                        else unset($data['image']);
+                        $sql2 ="update reps set ";
+                        $values2 = array_values($data);
+                        $keys2 = array_keys($data);
+                        for($i=0; $i < sizeof($keys2);$i++){
+                            $val = $values2[$i];
+                            $key = $keys2[$i];
+                            if($key == "image" && isset($image)){
+                                $key = "avatar";
+                                $val = $filename;
+                            }
+                            
+                            if($i == sizeof($keys2) -1) $sql .= $key .="='".$val."'";
+                            else $sql .= $key .="='".$val."',";
+                        }
+                        $sql2 .= " where id='".$id."'";
+            
+                        $query2 = $this->con->query($sql2);
+
+                        if(!$query2){
+                            $result['code'] = 1;
+                            $result['msg'] = "Sorry, could not update rep data";
+                        }
+                        else{
+                            $u = $this->getUserByEmail($email)['user'];
+                            $result['code'] = 0;
+                            $result['msg'] = "Successful";
+                            $u['detail'] = $this->getRepByEmail($email)['rep'];
+                            unset($u['password']);
+                            $result['user'] = $u;
+                        }
+                    }
+                }
+                else{
+                    $u = $this->getUserByEmail($email)['user'];
+                    unset($u['password']);
+                    $result['code'] = 0;
+                    $result['msg'] = "Successful";
+                    $result['user'] = $u;
+                }
+            }           
+            
+        }
+        return $result;
+    }
     public function getProducts($userId){
         $result = array();
         $user = $this->getUserById($userId);
@@ -154,7 +270,7 @@ class API{
         $rep = $this->getRepById($repId);
         if($rep['rep'] == null){
             $result['code'] = 1;
-            $result['msg'] = "You need to be logged in to perform this operation: ".$repId;
+            $result['msg'] = "You need to be logged in to perform this operation: ";
             
         }
         else{

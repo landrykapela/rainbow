@@ -11,8 +11,13 @@ $api = new API();
 if(isset($_GET['tag'])){
     $data = !empty($_POST) ? $_POST : json_decode(file_get_contents("php://input"),true);
     $image = !empty($_POST) ? $_FILES["image"] : $data['image'];
-    
-    if(isset($data['btnAddProduct'])){
+    if(isset($data['btnUpdateUser'])){
+        unset($data['btnUpdateUser']);
+        $data['image'] = $image;
+        $result = $api->updateUser($data);
+        echo json_encode($result);
+    }
+    else if(isset($data['btnAddProduct'])){
         $result = $api->createProduct($data['name'],$data['description'],$data['pack_size'],$data['user_id'],$image);
         echo json_encode($result);
     }
@@ -182,10 +187,11 @@ else{
         
         
     }
+    
     else{
         $result['code'] = 1;
         $result['msg'] = "Invalid Request";
-        echo json_encode($result);
+        echo $raw;
     }
    
     

@@ -1,6 +1,12 @@
 <?php
-ini_set("display_errors",0);
+
 require_once('config.php');
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\SMTP;
+use PHPMailer\PHPMailer\Exception;
+
+require_once("vendor/autoload.php");
 class API{
 
     private $con;
@@ -15,6 +21,7 @@ class API{
     function generateId($length){
         $charSet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         $result = "";
+        if(is_null($length)) $length = 8;
         for($i=0;$i<$length;$i++){
             $result .= $charSet[rand(0, strlen($charSet) -1)];
         }
@@ -114,121 +121,206 @@ class API{
         }
         
     }
+    public function updateAvatar($id,$avatar){
+        $user = $this->getUserById($id);
+        $result = array();
+        if($user === false){
+            $result['code'] = 1;
+            $result['msg'] = 'You need to be logged in to perform this operation';
+        }
+        else{
+            if(isset($avatar) && !is_null($avatar)){
+                $ext = 'png';
+                if(isset($avatar['name'])){
+                    $ext = strtolower(pathinfo(UPLOAD_PATH.basename($avatar["name"]),PATHINFO_EXTENSION));
+                }
+                $filename = $id .".".$ext;
+                $path = UPLOAD_PATH.$filename;
+                
+                $sql = "update user set avatar='".$filename."' where id='".$id."'";
+                $query = $this->con->query($sql);
+                if(!$query){
+                    $result['code'] = 1;
+                    $result['msg'] = 'Sorry, could not update user data';
+                    
+                }
+                else{
+                    if(isset($avatar['name'])){
+                        move_uploaded_file($avatar['tmp_name'],$path);
+                    }
+                    else{
+                        file_put_contents($path,base64_decode(str_replace(" ","+",$avatar),true));
+                    }
+                   
+                    $result['code'] = 0;
+                    $result['msg'] = 'Successful';
+                    $y = $this->getUserById($id)['user'];
+                    unset($y['password']);
+                    if(intval($user['user']['level']) === NORMAL){
+                        $u = $this->getRepByEmail($user['user']['email']);
+                        $y['detail'] = $u['rep'];
+                    }
+                    $result['user'] = $y;
+                    $q = $this->con->query("update reps set avatar='".$filename."' where email='".$user['user']['email']."'");
+                    if(!$q){
+                        $result['msg'] = "Could not update rep data: ".$q;
+                        $result['error'] = $this->con->error;
+                    }
+                }
+            }
+            else{
+                $result['code'] = 1;
+                $result['msg'] = 'Sorry, there was no image uploaded';
+            }
+        }
+        return $result;
+    }
     public function updateUser($data){
+        $result = array();
+        
         $id = $data['uid'];
-        $image = $data['image'];
+        unset($data['image']);
         $email = $data['email'];
         $level = $data['level'];
         unset($data['uid']);
         unset($data['email']);
         unset($data['level']);
-        $result = array();
         $user = $this->getUserById($id);
         if($user === false){
             $result['code'] = 1;
             $result['msg'] = "You need to be logged in to perform this operation: ";
         }
         else{
-            if(isset($image)){
-                if(base64_decode($image,true) == false){
-                    $ext = strtolower(pathinfo(UPLOAD_PATH.basename($image["name"]),PATHINFO_EXTENSION));
-                }
-                else $ext = "png";
-                $filename = $id .".".$ext;
-                $path = UPLOAD_PATH.$filename;
-                if(base64_decode($image,true) == false){
-                    move_uploaded_file($image['tmp_name'],$path);
-                }
-                else{
-                    file_put_contents($path,base64_decode($image,true));
-                }
-            }
-            else unset($data['image']);
             $sql ="update user set ";
             $values = array_values($data);
             $keys = array_keys($data);
-            for($i=0; $i < sizeof($keys);$i++){
-                $val = $values[$i];
-                $key = $keys[$i];
-                if($key == "image" && isset($data['image'])){
-                    $key = "avatar";
-                    $val = $filename;
+            if(sizeof($keys) > 0){
+                for($i=0; $i < sizeof($keys);$i++){
+                    $val = $values[$i];
+                    $key = $keys[$i];
+                    
+                    if($key == "password"){
+                        $newval = password_hash($val,PASSWORD_BCRYPT);
+                        $val = $newval;
+                    }
+                    if($key == "service_area") continue;
+                    if($i == sizeof($keys) -1) $sql .= $key .="='".$val."'";
+                    else $sql .= $key .="='".$val."',";
                 }
-                if($key == "password"){
-                    $val = password_hash($val,PASSWORD_BCRYPT);
+                $sql .= " where id='".$id."'";
+                unset($data['password']);
+                $query = $this->con->query($sql);
+                if(!$query){
+                    $result['code'] = 1;
+                    $result['msg'] = "Sorry, could not update user data ".$sql;
+                    $result['error'] = $this->con->error;
                 }
-                if($i == sizeof($keys) -1) $sql .= $key .="='".$val."'";
-                else $sql .= $key .="='".$val."',";
-            }
-            $sql .= " where id='".$id."'";
+                else{
+                    if(intval($user['user']['level']) === NORMAL) {    
+                        $rep = $this->getRepByEmail($email)['rep'];
+                    
+                        if(is_null($rep)){
+                            $result['code'] = 1;
+                            $result['msg'] = "Sorry, could not find rep data";
+                        }
+                        else{
+                            
+                            $sql2 ="update reps set ";
+                            $values2 = array_values($data);
+                            $keys2 = array_keys($data);
+                            if(sizeof($keys2) > 0){
+                                for($i=0; $i < sizeof($keys2);$i++){
+                                    $val = $values2[$i];
+                                    $key = $keys2[$i];
+                                    
+                                    if($i == sizeof($keys2) -1) $sql2 .= $key .="='".$val."'";
+                                    else $sql2 .= $key .="='".$val."',";
+                                }
+                                $sql2 .= " where id='".$rep['id']."'";
+                    
+                                $query2 = $this->con->query($sql2);
 
+                                if(!$query2){
+                                    $result['code'] = 1;
+                                    $result['msg'] = "Sorry, could not update rep data ".$sql2;
+                                    $result['error'] = $this->con->error;
+                                }
+                                else{
+                                    $u = $this->getUserByEmail($email)['user'];
+                                    $result['code'] = 0;
+                                    $result['msg'] = "Successful";
+                                    $u['detail'] = $this->getRepByEmail($email)['rep'];
+                                    unset($u['password']);
+                                    $result['user'] = $u;
+                                }
+                            }
+                            else{
+                                $u = $this->getUserByEmail($email)['user'];
+                                $result['code'] = 0;
+                                $result['msg'] = "Successful";
+                                $u['detail'] = $this->getRepByEmail($email)['rep'];
+                                unset($u['password']);
+                                $result['user'] = $u;
+                            }
+                        }
+                    }
+                    else{
+                        $u = $this->getUserByEmail($email)['user'];
+                        unset($u['password']);
+                        $result['code'] = 0;
+                        $result['msg'] = "Successful";
+                        $result['user'] = $u;
+                    }
+                }           
+            }
+            else{
+                $u = $this->getUserByEmail($email)['user'];
+                unset($u['password']);
+                $result['code'] = 0;
+                $result['msg'] = "Successful";
+                $result['user'] = $u;
+            }
+        }
+        return $result;
+    }
+    public function resetPassword($email){
+        $user = $this->getUserByEmail($email);
+        $result = array();
+        if($user === false){
+            $result['code'] = 1;
+            $result['msg'] = "Sorry, this account does not exist";
+            return $result;
+        }
+        else{
+            $password = $this->generateId(8);
+            $hash= password_hash($password,PASSWORD_BCRYPT);
+            $sql = "update user set password='".$hash."' where email='".$email."'";
             $query = $this->con->query($sql);
             if(!$query){
                 $result['code'] = 1;
-                $result['msg'] = "Sorry, could not update user data ".$sql;
-                $result['error'] = $this->con->error;
-                unlink($path);
+                $result['msg'] = "Sorry, could not reset your password";
+                return $result;
             }
             else{
-                if(intval($user['user']['level']) === NORMAL) {    
-                    $rep = $this->getRepByEmail($email)['rep'];
-                    if(is_null($rep)){
-                        $result['code'] = 1;
-                        $result['msg'] = "Sorry, could not find rep data";
-                    }
-                    else{
-                        if(isset($image)){
-                            if(base64_decode($image,true) == false){
-                                $ext = strtolower(pathinfo(UPLOAD_PATH.basename($image["name"]),PATHINFO_EXTENSION));
-                            }
-                            else $ext = "png";
-                            $filename = $rep['id'] .".".$ext;
-                            
-                        }
-                        else unset($data['image']);
-                        $sql2 ="update reps set ";
-                        $values2 = array_values($data);
-                        $keys2 = array_keys($data);
-                        for($i=0; $i < sizeof($keys2);$i++){
-                            $val = $values2[$i];
-                            $key = $keys2[$i];
-                            if($key == "image" && isset($image)){
-                                $key = "avatar";
-                                $val = $filename;
-                            }
-                            
-                            if($i == sizeof($keys2) -1) $sql .= $key .="='".$val."'";
-                            else $sql .= $key .="='".$val."',";
-                        }
-                        $sql2 .= " where id='".$id."'";
-            
-                        $query2 = $this->con->query($sql2);
-
-                        if(!$query2){
-                            $result['code'] = 1;
-                            $result['msg'] = "Sorry, could not update rep data";
-                        }
-                        else{
-                            $u = $this->getUserByEmail($email)['user'];
-                            $result['code'] = 0;
-                            $result['msg'] = "Successful";
-                            $u['detail'] = $this->getRepByEmail($email)['rep'];
-                            unset($u['password']);
-                            $result['user'] = $u;
-                        }
-                    }
+                
+                $data = array();
+                $data['email'] = $email;
+                $data['password'] = $password;
+                $data['name'] = $user['user']['fname'];
+                if($this->sendResetPasswordEmail($data)){
+                    $result['code'] = 0;
+                    $result['msg'] = "Password has been reset. Check your email for instructions";
+                    return $result;
                 }
                 else{
-                    $u = $this->getUserByEmail($email)['user'];
-                    unset($u['password']);
                     $result['code'] = 0;
-                    $result['msg'] = "Successful";
-                    $result['user'] = $u;
+                    $result['msg'] = "Password has been reset. But failed to send email";
+                    return $result;
                 }
-            }           
-            
+            }
+
         }
-        return $result;
+      
     }
     public function getProducts($userId){
         $result = array();
@@ -1338,6 +1430,68 @@ class API{
         return $result;
     }
     
+     //send reset password email
+     function sendResetPasswordEmail($data){
+        $html = '<html lang="en">
+        <head>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            <meta name="theme-color" content="#000000" />
+            <meta
+            name="description"
+            content="Rainbow Distribution Management System"
+            />
+            
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-BmbxuPwQa2lc/FVzBcNJ7UAyJxM6wuqIj61tLrc4wSX0szH/Ev+nYRRuWlolflfl" crossorigin="anonymous">
+            <link href="https://fonts.googleapis.com/icon?family=Material+Icons"
+            rel="stylesheet">
+            <title>Rainbow Distribution Management System</title>
+        </head>
+        <body>
+        <main class="m-4">
+        
+        <div class="col-md-8 col-lg-8 col-sm-10 offset-2" >
+            <div class="primary-text my-3 fs-3 text-center">Password Reset</div>
+            <div class="form-group my-2 col-md-6 col-lg-6 col-sm-10 offset-lg-3 offset-md-3 offset-sm-1">
+            <p>Dear <span class="text-capitalize">'.$data['name'].',</span></p>
+                <p>A password reset was requested using this email address. If it is not you, please ignore this message</p>
+                <p>Your new password is: <strong>'.$data['password'].'</strong>
+            </div>
+            
+            
+        </div>
+
+        </main></body></html>';     
+
+        $to = "info@mak-david.com";//$this->email;
+
+        $subject = SERVICE;
+
+        $mail = new PHPMailer(true);
+        $mail->isSMTP();
+        $mail->Host = SMTP;
+        $mail->SMTPAuth=true;
+        $mail->SMTPSecure= "ssl";
+        $mail->Port = 465;
+        $mail->Username = EMAIL;
+        $mail->Password = SECRET;
+        $mail->From = EMAIL;
+        $mail->FromName = SERVICE;
+        $mail->isHTML(true);
+        $mail->addAddress($to);
+        // $mail->addAddress($data['email']);
+        $mail->Subject =$subject;
+        $mail->Body = $html;
+        try{
+            $mail->send();
+            
+            return true;
+        }
+        catch(Exception $e){
+            
+            return $mail->ErrorInfo;
+        }
+    }
 }
 
 

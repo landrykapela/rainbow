@@ -10,11 +10,26 @@ $api = new API();
 
 if(isset($_GET['tag'])){
     $data = !empty($_POST) ? $_POST : json_decode(file_get_contents("php://input"),true);
-    $image = !empty($_POST) ? $_FILES["image"] : $data['image'];
+    $image = null;
+    if(!empty($_POST) && isset($_FILES['image'])){
+        $image = $_FILES['image'];
+    }
+    else{
+        if(!is_null($data) && isset($data['image'])) $image = $data['image'];
+    }
     if(isset($data['btnUpdateUser'])){
         unset($data['btnUpdateUser']);
         $data['image'] = $image;
         $result = $api->updateUser($data);
+        echo json_encode($result);
+    }
+    else if(isset($data['updateAvatar'])){
+        $id = $data['id'];
+        $result = $api->updateAvatar($id,$image);
+        echo json_encode($result);
+    }
+    else if(isset($data['btnReset'])){
+        $result = $api->resetPassword($data['email']);
         echo json_encode($result);
     }
     else if(isset($data['btnAddProduct'])){

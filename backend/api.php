@@ -412,7 +412,7 @@ class API{
         else{
             $id = $this->generateId(5);
             if($image != null){
-                if(base64_decode($image,true) == false){
+                if(isset($image['name'])){
                 $ext = strtolower(pathinfo(UPLOAD_PATH.basename($image["name"]),PATHINFO_EXTENSION));
                 }
                 else $ext = "png";
@@ -431,7 +431,7 @@ class API{
                     $result['msg'] =  "Successful";
                     $result['products'] = $this->getProducts($userId)['products']; 
                     
-                    if(base64_decode($image,true) == false){
+                    if(isset($image['tmp_name'])){
                         move_uploaded_file($image['tmp_name'],$path);
                     }
                     else{
@@ -472,7 +472,7 @@ class API{
             }
         }
         return $result;
-}
+    }
     public function updateProduct($data){
         $result = array();
         $user = $this->getUserById($data['user_id']);
@@ -486,7 +486,7 @@ class API{
             $id = $data['id'];
             $sql = "update products set ";
             if($image != null && $image != "undefined" && $image != "null"){
-                if(base64_decode($image,true) == false){
+                if(isset($image['name'])){
                     $ext = strtolower(pathinfo(UPLOAD_PATH.basename($image["name"]),PATHINFO_EXTENSION));
                 }
                 else $ext = "png";
@@ -506,7 +506,7 @@ class API{
                 $result['msg'] =  "Successful";
                 $result['products'] = $this->getProducts($data['user_id'])['products']; 
             
-                if(base64_decode($image,true) ==false){
+                if(isset($image['tmp_name'])){
                     move_uploaded_file($data['image']['tmp_name'],$path);
                 }
                 else{
@@ -534,7 +534,7 @@ class API{
                 $query = $this->con->query($sql);
                 if(!$query){
                     $result['code'] = 1;
-                    $result['msg'] = "Could not create supplier record ".$this->con->error;
+                    $result['msg'] = "Could not create supplier record ";
                     
                 }
                 else{
@@ -660,95 +660,54 @@ class API{
         else{
             $id = $this->generateId(5);
             if($avatar != null){
-                if(base64_decode($avatar) == false){
+                if(isset($image['name'])){
                     $ext = strtolower(pathinfo(UPLOAD_PATH.basename($avatar["name"]),PATHINFO_EXTENSION));
-                    $filename = $id .".".$ext;
-                    $path = UPLOAD_PATH.$filename;   
-                    if(move_uploaded_file($avatar['tmp_name'],$path)){
+                }
+                else $ext = "png";
+                $filename = $id .".".$ext;
+                $path = UPLOAD_PATH.$filename;  
+                if(isset($avatar['tmp_name'])){
+                    move_uploaded_file($avatar['tmp_name'],$path);
                         $result['msg'] = "Image successfully uploaded";
-                    }
-                    else{
-                        $result['msg'] =  "Could not upload image";
-                    }        
                 }
                 else{
-                    // $parts = explode(";base64,",$avatar);
-                    // if(sizeof($parts) > 0){
-                        $ext = "png";//strtolower(explode("/",$parts[0])[1]);
-                        $filename = $id .".".$ext;
-                        $path = UPLOAD_PATH.$filename;
-                        file_put_contents($path,base64_decode($avatar));
-                    // }
-                    // else{
-
-                    // }
-                    
-                }
-                
-                
+                    file_put_contents($path,base64_decode($avatar,true));
+                }      
                 $sql = "insert into reps (id,fname,lname,email,phone,service_area,admin,avatar) values 
                 ('".$id."','".$fname."','".$lname."','".$email."','".$phone."','".$area."','".$admin."','".$filename."')";
-                $query = $this->con->query($sql);
-                if(!$query){
-                    $result['code'] = 1;
-                    $result['msg'] = "Could not create rep record ";
-                
-                }
-                else{
-                    $uid = $this->generateId(ID_LENGTH);
-                    $hash = password_hash($password,PASSWORD_BCRYPT);
-                    $sql2 = "insert into user (id,fname,lname,email,password,level) values('".$uid."','".$fname."','".$lname."','".$email."','".$hash."',1)";
-                    $q = $this->con->query($sql2);
-                    if($q){
-                        $result['code'] = 0;
-                        $result['msg'] =  "Successful";
-                        
-                    }
-                    else{
-                        $this->con->query("delete from reps where id='".$id."'");
-                        $result['code'] = 1;
-                        $result['msg'] =  "Sorry, could not create rep ".$email;
-                        unlink($path);
-                    }
-
-                    $result['reps'] = $this->getReps($admin)['reps']; 
-                }
-               
+                  
             }
             else{
                 $sql = "insert into reps (id,fname,lname,email,phone,service_area,admin,avatar) values 
                 ('".$id."','".$fname."','".$lname."','".$email."','".$phone."','".$area."','".$admin."','".$filename."')";
-                $query = $this->con->query($sql);
-                if(!$query){
-                    $result['code'] = 1;
-                    $result['msg'] = "Could not create rep record ";
                 
+            }
+            $query = $this->con->query($sql);
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not create rep record ";            
+            }
+            else{
+                $uid = $this->generateId(ID_LENGTH);
+                $hash = password_hash($password,PASSWORD_BCRYPT);
+                $sql2 = "insert into user (id,fname,lname,email,password,level,avatar) values('".$uid."','".$fname."','".$lname."','".$email."','".$hash."',1,'".$filename."')";
+                $q = $this->con->query($sql2);
+                if(!$q){
+                    $this->con->query("delete from reps where id='".$id."'");
+                    $result['code'] = 1;
+                    $result['msg'] =  "Sorry, could not create rep ".$email;
+                    if(isset($avatar)){
+                        unlink($path);
+                    }
                 }
                 else{
-                    $uid = $this->generateId(ID_LENGTH);
-                    $hash = password_hash($password,PASSWORD_BCRYPT);
-                    $sql2 = "insert into user (id,fname,lname,email,password,level) values('".$uid."','".$fname."','".$lname."','".$email."','".$hash."',1)";
-                    $q = $this->con->query($sql2);
-                    if($q){
-                        $result['code'] = 0;
-                        $result['msg'] =  "Successful";
-                        if(move_uploaded_file($avatar['tmp_name'],$path)){
-                            $result['msg'] = "Image successfully uploaded";
-                        }
-                        else{
-                            $result['msg'] =  "Could not upload image";
-                        } 
-                    }
-                    else{
-                        $this->con->query("delete from reps where id='".$id."'");
-                        $result['code'] = 1;
-                        $result['msg'] =  "Sorry, could not create rep ".$email;
-                    }
-
+                    $result['code'] = 0;
+                    $result['msg'] =  "Successful";
                     $result['reps'] = $this->getReps($admin)['reps']; 
                 }
-            }
+            }   
         }
+        
         return $result;
     }
     //update rep
@@ -1023,25 +982,21 @@ class API{
                 else{
                     $msg = "Successful but no invoice uploaded";
                     if($invoice != null){
-                        if(base64_decode($invoice) == false){
+                        if(isset($invoice['name'])){
                            $ext = strtolower(pathinfo(UPLOAD_PATH.basename($invoice["name"]),PATHINFO_EXTENSION));
                          
                         }
                         else $ext = "pdf";
                         $filename = $invoice_no.".".$ext;
-                        $path = __DIR__ ."/".UPLOAD_PATH.$filename;
+                        $path = UPLOAD_PATH.$filename;
         
                         $sql = "update inventory set invoice='".$filename."' where invoice_no='".$invoice_no."'";
                         if($this->con->query($sql)) {
-                            if(base64_decode($invoice) == false){
-                                if(move_uploaded_file($invoice['name'],$path)){
-                                $msg = "Successful and invoice was uploaded to ".$path;
-                                }
-                                else $msg = "Could not upload to path".$path;
+                            if(isset($invoice['tmp_name'])){
+                                move_uploaded_file($invoice['tmp_name'],$path);
                             }
                             else {
                                 file_put_contents($path,base64_decode($invoice));
-                            $msg = "Successful and invoice was uploaded";
                             }
                         }
                         $result['code'] = 0;
@@ -1191,7 +1146,6 @@ class API{
         return $result; 
     }
     public function createCustomer($userId,$data){
-        
         $result = array();
         $user = $this->getUserById($userId);
         if(!$user){
@@ -1207,7 +1161,7 @@ class API{
             $hasImage = false;
             if(isset($image)){
                 $hasImage = true;
-                if(base64_decode($image,true) == false){
+                if(isset($image['name'])){
                     $ext = strtolower(pathinfo(UPLOAD_PATH.basename($image["name"]),PATHINFO_EXTENSION));
                 }
                 else $ext = "png";
@@ -1225,7 +1179,7 @@ class API{
                 $vals .= "'".array_values($data)[$i]."', ";
             }
             if($hasImage){
-                if(base64_decode($image,true) == false){
+                if(isset($image['tmp_name'])){
                     move_uploaded_file($image['tmp_name'],$path);
                 }
                 else{
@@ -1243,11 +1197,10 @@ class API{
             if(!$query){
                 $result['code'] = 1;
                 $result['msg'] = "Could not create customer";
-                $result['error'] = $this->con->error;
             }
             else{
                 $result['code'] = 0;
-                $result['msg'] = "Successful ".$sql;
+                $result['msg'] = "Successful ";
                 $result['customers'] = $this->getCustomers($userId)['customers'];
             }
         }
@@ -1268,7 +1221,7 @@ class API{
             $hasImage = false;
             if(isset($image)){
                 $hasImage = true;
-                if(base64_decode($image,true) == false){
+                if(isset($image['name'])){
                     $ext = strtolower(pathinfo(UPLOAD_PATH.basename($image["name"]),PATHINFO_EXTENSION));
                 }
                 else $ext = "png";
@@ -1294,7 +1247,7 @@ class API{
                 }
                 else{
                     if($hasImage){
-                        if(base64_decode($image,true) == false){
+                        if(isset($image['tmp_name'])){
                             move_uploaded_file($image['tmp_name'],$path);
                         }
                         else file_put_contents($path,base64_decode($image,true));
@@ -1363,7 +1316,7 @@ class API{
                 else $sql .= array_values($data)[$i].",";
             }
             if($file != null){
-                if(base64_decode($file,true) == false){
+                if(isset($file['name'])){
                     $ext = strtolower(pathinfo(UPLOAD_PATH.basename($file["name"]),PATHINFO_EXTENSION));
                     $filename = $id.".".$ext;
                     move_uploaded_file($file['tmp_name'],UPLOAD_PATH.$filename);

@@ -92,7 +92,7 @@ if(isset($_GET['tag'])){
     }
     else if(isset($data['btnAddCustomer'])){
         unset($data['btnAddCustomer']);
-        $data['image'] = !empty($_POST) ? $_FILES['image'] : $data['image'];
+        $data['image'] = $image;//!empty($_POST) ? $_FILES['image'] : $data['image'];
         $result = $api->createCustomer($data['rep'],$data);
         echo json_encode($result);
     }
@@ -165,20 +165,20 @@ else if(isset($_GET['uid'])){
     echo json_encode($result);
 }
 else{
+    $result = array();
     $raw = file_get_contents("php://input");
-   
     $content = json_decode($raw);
 
-    //check signup form
+    // //check signup form
     if(isset($content->btnSignup)){
         $fname = (isset($content->fname) && !empty($content->fname)) ? filter_var($content->fname,FILTER_SANITIZE_STRING) : null;
         $lname = (isset($content->lname) && !empty($content->lname)) ? filter_var($content->lname,FILTER_SANITIZE_STRING) : null;
         $email = (isset($content->email) && !empty($content->email)) ? filter_var($content->email,FILTER_SANITIZE_EMAIL) : null;
         $password = $content->password;
-        $result = array();
+        
         
         if($fname != null && $lname != null && $email != null){
-            $result = $api->signUp($fname,$lname,$email,$password);
+           $result = $api->signUp($fname,$lname,$email,$password);
             echo json_encode($result);
         }
         else{
@@ -199,16 +199,12 @@ else{
             $result['msg'] = "Invalid email address";
             echo json_encode($result);
         }
-        
-        
     }
-    
     else{
         $result['code'] = 1;
         $result['msg'] = "Invalid Request";
-        echo $raw;
+        echo json_encode($result);
     }
-   
     
 }
 

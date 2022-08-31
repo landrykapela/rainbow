@@ -505,14 +505,14 @@ class API{
                 $result['code'] = 0;
                 $result['msg'] =  "Successful";
                 $result['products'] = $this->getProducts($data['user_id'])['products']; 
-            
-                if(isset($image['tmp_name'])){
-                    move_uploaded_file($data['image']['tmp_name'],$path);
+                if($image != null && $image != "undefined" && $image != "null"){
+                    if(isset($image['tmp_name'])){
+                        move_uploaded_file($data['image']['tmp_name'],$path);
+                    }
+                    else{
+                        file_put_contents($path,base64_decode($image,true));
+                    }
                 }
-                else{
-                    file_put_contents($path,base64_decode($image,true));
-                }
-                
             }
         }
             
@@ -1138,7 +1138,37 @@ class API{
                 $result['msg'] = "Successful";
                 $customers = array();
                 while($r=$query->fetch_assoc()){
+                    $r['rep'] = $this->getRepById($r['rep'])['rep'];
                     $customers[] = $r;
+                }
+                $result['customers'] = $customers;
+            }
+        }
+        return $result; 
+    }
+    public function getAllCustomers($userId){
+        $result = array();
+        $user = $this->getUserById($userId);
+        if(!$user){
+            $result['code'] = 1;
+            $result['msg'] = "Could not find user";
+            $result['error'] = $this->con->error;
+        }
+        else{
+            $query = $this->con->query("select * from customers");
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not get customer";
+                $result['error'] = $this->con->error;
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "Successful";
+                $customers = array();
+                while($r=$query->fetch_assoc()){
+                    $u = $this->getUserById($r['rep'])['user'];
+                    $r['rep'] = $this->getRepByEmail($u['email'])['rep'];
+                    if($r['rep']['admin'] == $userId) $customers[] = $r;
                 }
                 $result['customers'] = $customers;
             }
@@ -1338,9 +1368,23 @@ class API{
                 $result['error'] = $this->con->error;
             }
             else{
+                // if($data['status'] == 1){
+                //     $txn = $this->getTransaction($this->con->insert_id)['transaction'];
+                //     $pay = array();
+                //     $pay['reference'] = $txn['id'];
+                //     $pay['account'] = $txn['customer'];
+                //     $pay['owner'] = $data['rep'];
+                //     $pay['amount'] = $txn['price'] * $txn['quantity'];
+                //     $pay['payment_type'] = 0;
+                //     $pay['payment_date'] = time();
+                //     $pay['file'] = $file;
+                //     // $pay['uid'] = $ui
+                //     $this->registerPayment($pay);
+                // }
                 $result['code'] = 0;
                 $result['msg'] = "Success";
                 $result['transactions'] = $this->getTransactions($rep['uid'])['transactions'];
+                $result['payments'] = $this->getPayments($rep['uid'])['payments'];
             }
         }    
         return $result;
@@ -1382,9 +1426,128 @@ class API{
         }
         return $result;
     }
+    public function getTransaction($id){
+        $result = array();
+        $sql = "select * from transactions where id='".$id."' order by date_created desc limit 1";
+        
+        $query = $this->con->query($sql);
+        if(!$query){
+            $result['code'] = 1;
+            $result['msg'] = "Could not get transaction";
+            $result['error'] = $this->con->error;
+        }   
+        else{
+            $result['code'] = 0;
+            $result['msg'] = "Successful";
+            $transactions = array();
+            $r=$query->fetch_assoc();
+            $r['rep'] = $this->getRepById($r['rep'])['rep'];
+            $r['product_detail'] = $this->getProduct($r['product'])['product'];
+            $r['customer_detail'] = $this->getCustomer($r['customer'])['customer'];
+                
+            $result['transaction'] = $r;
+            
+        }
+        
+        return $result;
+    }
+
+    //register payment
+    public function registerPayment($data){
+        $uid = $data['uid'];
+        unset($data['uid']);
+        $result = array();
+        $user = $this->getUserById($uid);
+        if($user == false){
+            $result['code'] = 1;
+            $result['msg'] = "You must login to send this request ".$uid;
+        }
+        else{
+            $admin = $user['user']['level'] == ADMIN ? $user['user']['id'] : $this->getRepByEmail($user['user']['email'])['rep']['admin'];
+            $type = $data['payment_type'];
+            $file = $data['file'];
+            unset($data['file']);
+            $filename = null;
+            if($file != null){
+                $id = $this->generateId(16);
+                if(isset($file['name'])){
+                    $ext = strtolower(pathinfo(UPLOAD_PATH.basename($file["name"]),PATHINFO_EXTENSION));
+                    $filename = $id.".".$ext;
+                    move_uploaded_file($file['tmp_name'],UPLOAD_PATH.$filename);
+                }
+                else{
+                    $ext = "png";
+                    $filename = $id.".".$ext;
+                    $path = UPLOAD_PATH.$filename;
+                    file_put_contents($path,base64_decode($file,true));
+                }
+            }
+            $sql = "insert into payments (";
+            for($i=0;$i<sizeof(array_keys($data));$i++){
+                $sql .= array_keys($data)[$i].", ";
+            }
+            if($file != null) $sql .= "file, ";
+            $sql .= "date_created,admin) values (";
     
+            for($i=0;$i<sizeof(array_values($data));$i++){
+                if(gettype(array_values($data)[$i]) == "string") $sql .= "'".array_values($data)[$i]."',";
+                else $sql .= array_values($data)[$i].",";
+            }
+            if($file != null) $sql .= "'".$filename."',";
+            $sql .= time().",'".$admin."')";
+            $query = $this->con->query($sql);
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not record payment";
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "Success";
+                $result['payments'] =$this->getPayments($uid)['payments'];
+            }
+        }
+        
+        return $result;
+    }
+    
+    //get payments
+    function getPayments($userId){
+        $result = array();
+        $user = $this->getUserById($userId);
+        if($user === false){
+            $result['code'] = 1;
+            $result['msg'] = "You are not allowed to access this page";
+        }
+        else{
+            if(intval($user['user']['level']) === ADMIN){
+                $sql = "select * from payments where admin='".$userId."' order by date_created desc";
+            }
+            else {
+                $sql = "select * from payments where owner='".$userId."' order by date_created desc";
+            }
+            $query = $this->con->query($sql);
+            if(!$query){
+                $result['code'] = 1;
+                $result['msg'] = "Could not retrieve payment info";
+                $result['error'] = $this->con->error;
+            }
+            else{
+                $result['code'] = 0;
+                $result['msg'] = "Success";
+                $payments = array();
+                while($r=$query->fetch_assoc()){
+                    $r['account'] = $r['payment_type'] == 2 ?"General Expenses":($r['payment_type'] == 0 ? $this->getCustomer($r['account'])['customer']:$this->getSupplierById($r['account'])['supplier']);
+                    $r['owner'] = $this->getUserById($r['owner'])['user'];
+                    $payments[] = $r;
+                }
+                $result['payments'] = $payments;
+            }
+        }
+
+        return $result;
+    }
      //send reset password email
-     function sendResetPasswordEmail($data){
+    function sendResetPasswordEmail($data){
         $html = '<html lang="en">
         <head>
             <meta charset="utf-8" />

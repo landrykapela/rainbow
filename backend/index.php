@@ -87,6 +87,7 @@ if(isset($_GET['tag'])){
     else if(isset($data['btnTransaction'])){
         unset($data['btnTransaction']);
         $data['file'] = !empty($_POST) ? $_FILES['file'] : $data['file'];
+        $data['status'] = ($data['type'] == 0) ?1:0;
         $result = $api->saveTransaction($data);
         echo json_encode($result);
     }
@@ -106,6 +107,12 @@ if(isset($_GET['tag'])){
     }
     else if(isset($data['btnDeleteCustomer'])){
         $result = $api->deleteCustomer($data['id'],$data['rep']);
+        echo json_encode($result);
+    }
+    else if(isset($data['btnRegPayment'])){
+        $data['file'] = !empty($_POST) ? $_FILES['file'] : $data['file'];
+        unset($data['btnRegPayment']);
+        $result = $api->registerPayment($data);
         echo json_encode($result);
     }
     else if(isset($_GET['uid']) && $_GET['tag'] == "products"){
@@ -143,6 +150,11 @@ if(isset($_GET['tag'])){
         $result = $api->getTransactions($uid);
         echo json_encode($result);
     }
+    else if(isset($_GET['uid']) && $_GET['tag'] == "payments"){
+        $uid = $_GET['uid'];
+        $result = $api->getPayments($uid);
+        echo json_encode($result);
+    }
     else{
         $result['code'] = 1;
         $result['msg'] = "Invalid request";
@@ -153,10 +165,11 @@ if(isset($_GET['tag'])){
 else if(isset($_GET['uid'])){
     $userId = $_GET['uid'];
     $level = $_GET['level'];
-    $result['customers'] = $api->getCustomers($userId);
+    $result['customers'] = intval($level) == ADMIN ? $api->getAllCustomers($userId) : $api->getCustomers($userId);
     $result['issues'] = $api->getIssues($userId);
     $result['transactions'] = $api->getTransactions($userId,$level);
     $result['products'] = $api->getProducts($userId);
+    $result['payments'] = $api->getPayments($userId);
     if(intval($level) == ADMIN){
         $result['inventory'] = $api->getInventory($userId);
         $result['suppliers'] = $api->getSuppliers($userId);
